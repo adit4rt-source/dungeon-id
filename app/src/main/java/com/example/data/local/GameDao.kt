@@ -53,22 +53,22 @@ interface GameDao {
     @Query("DELETE FROM user_accounts WHERE id = :id")
     suspend fun deleteUserAccount(id: String)
 
-    // Player
-    @Query("SELECT * FROM player_profile WHERE id = 1 LIMIT 1")
-    fun getPlayerProfile(): Flow<PlayerProfileEntity?>
+    // Player Profile
+    @Query("SELECT * FROM player_profile WHERE accountId = :accountId LIMIT 1")
+    fun getPlayerProfile(accountId: String): Flow<PlayerProfileEntity?>
 
-    @Query("SELECT * FROM player_profile WHERE id = 1 LIMIT 1")
-    suspend fun getPlayerProfileSync(): PlayerProfileEntity?
+    @Query("SELECT * FROM player_profile WHERE accountId = :accountId LIMIT 1")
+    suspend fun getPlayerProfileSync(accountId: String): PlayerProfileEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdatePlayer(player: PlayerProfileEntity)
 
     // Farm Plots
-    @Query("SELECT * FROM farm_plots ORDER BY plotIndex ASC")
-    fun getAllPlots(): Flow<List<FarmPlotEntity>>
+    @Query("SELECT * FROM farm_plots WHERE accountId = :accountId ORDER BY plotIndex ASC")
+    fun getAllPlots(accountId: String): Flow<List<FarmPlotEntity>>
 
-    @Query("SELECT * FROM farm_plots ORDER BY plotIndex ASC")
-    suspend fun getPlotsSync(): List<FarmPlotEntity>
+    @Query("SELECT * FROM farm_plots WHERE accountId = :accountId ORDER BY plotIndex ASC")
+    suspend fun getPlotsSync(accountId: String): List<FarmPlotEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlots(plots: List<FarmPlotEntity>)
@@ -77,17 +77,17 @@ interface GameDao {
     suspend fun updatePlot(plot: FarmPlotEntity)
 
     // Pets
-    @Query("SELECT * FROM pets ORDER BY id ASC")
-    fun getAllPets(): Flow<List<PetEntity>>
+    @Query("SELECT * FROM pets WHERE accountId = :accountId ORDER BY id ASC")
+    fun getAllPets(accountId: String): Flow<List<PetEntity>>
 
-    @Query("SELECT * FROM pets WHERE isEquipped = 1 LIMIT 1")
-    fun getEquippedPet(): Flow<PetEntity?>
+    @Query("SELECT * FROM pets WHERE accountId = :accountId AND isEquipped = 1 LIMIT 1")
+    fun getEquippedPet(accountId: String): Flow<PetEntity?>
 
-    @Query("SELECT * FROM pets WHERE isEquipped = 1 LIMIT 1")
-    suspend fun getEquippedPetSync(): PetEntity?
+    @Query("SELECT * FROM pets WHERE accountId = :accountId AND isEquipped = 1 LIMIT 1")
+    suspend fun getEquippedPetSync(accountId: String): PetEntity?
 
-    @Query("SELECT * FROM pets WHERE id = :petId LIMIT 1")
-    suspend fun getPetById(petId: Int): PetEntity?
+    @Query("SELECT * FROM pets WHERE accountId = :accountId AND id = :petId LIMIT 1")
+    suspend fun getPetById(accountId: String, petId: Int): PetEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPet(pet: PetEntity): Long
@@ -95,31 +95,31 @@ interface GameDao {
     @Update
     suspend fun updatePet(pet: PetEntity)
 
-    @Query("UPDATE pets SET isEquipped = 0")
-    suspend fun clearAllEquipped()
+    @Query("UPDATE pets SET isEquipped = 0 WHERE accountId = :accountId")
+    suspend fun clearAllEquipped(accountId: String)
 
-    @Query("UPDATE pets SET isEquipped = 1 WHERE id = :petId")
-    suspend fun setEquippedPet(petId: Int)
+    @Query("UPDATE pets SET isEquipped = 1 WHERE accountId = :accountId AND id = :petId")
+    suspend fun setEquippedPet(accountId: String, petId: Int)
 
     // Inventory
-    @Query("SELECT * FROM inventory_items WHERE count > 0 ORDER BY itemType, name ASC")
-    fun getAllInventory(): Flow<List<InventoryItemEntity>>
+    @Query("SELECT * FROM inventory_items WHERE accountId = :accountId AND count > 0 ORDER BY itemType, name ASC")
+    fun getAllInventory(accountId: String): Flow<List<InventoryItemEntity>>
 
-    @Query("SELECT * FROM inventory_items WHERE id = :itemId LIMIT 1")
-    suspend fun getItemById(itemId: String): InventoryItemEntity?
+    @Query("SELECT * FROM inventory_items WHERE accountId = :accountId AND id = :itemId LIMIT 1")
+    suspend fun getItemById(accountId: String, itemId: String): InventoryItemEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItem(item: InventoryItemEntity)
 
-    @Query("DELETE FROM inventory_items WHERE id = :itemId")
-    suspend fun deleteItemById(itemId: String)
+    @Query("DELETE FROM inventory_items WHERE accountId = :accountId AND id = :itemId")
+    suspend fun deleteItemById(accountId: String, itemId: String)
 
     // Fish Dex
-    @Query("SELECT * FROM fish_dex ORDER BY fishId ASC")
-    fun getAllFishDex(): Flow<List<FishDexEntity>>
+    @Query("SELECT * FROM fish_dex WHERE accountId = :accountId ORDER BY fishId ASC")
+    fun getAllFishDex(accountId: String): Flow<List<FishDexEntity>>
 
-    @Query("SELECT * FROM fish_dex WHERE fishId = :fishId LIMIT 1")
-    suspend fun getFishDexById(fishId: String): FishDexEntity?
+    @Query("SELECT * FROM fish_dex WHERE accountId = :accountId AND fishId = :fishId LIMIT 1")
+    suspend fun getFishDexById(accountId: String, fishId: String): FishDexEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateFishDex(fishDex: FishDexEntity)
@@ -128,11 +128,11 @@ interface GameDao {
     suspend fun insertAllFishDex(list: List<FishDexEntity>)
 
     // Quests
-    @Query("SELECT * FROM daily_quests ORDER BY id ASC")
-    fun getAllQuests(): Flow<List<QuestEntity>>
+    @Query("SELECT * FROM daily_quests WHERE accountId = :accountId ORDER BY id ASC")
+    fun getAllQuests(accountId: String): Flow<List<QuestEntity>>
 
-    @Query("SELECT * FROM daily_quests ORDER BY id ASC")
-    suspend fun getQuestsSync(): List<QuestEntity>
+    @Query("SELECT * FROM daily_quests WHERE accountId = :accountId ORDER BY id ASC")
+    suspend fun getQuestsSync(accountId: String): List<QuestEntity>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertQuests(quests: List<QuestEntity>)

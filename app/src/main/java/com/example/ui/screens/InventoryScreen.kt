@@ -670,10 +670,24 @@ fun PixelItemDetailInspector(
     onSellAll: () -> Unit
 ) {
     val rarity = try { ItemRarity.valueOf(item.rarity) } catch (_: Exception) { ItemRarity.COMMON }
-    val isUsable = item.itemType in listOf("POTION", "FOOD", "PET_FOOD", "CHEST") ||
-            item.id.contains("potion") || item.id.contains("scroll") ||
-            item.id.contains("chest") || item.id.contains("pet_food") ||
-            item.id.contains("evo_crystal")
+    val isUsable = item.itemType in listOf("SEED", "CROP", "FISH", "BAIT", "POTION", "FOOD", "PET_FOOD", "CHEST", "MATERIAL") ||
+            item.id.startsWith("crop_seed_") || item.id.startsWith("item_crop_") ||
+            item.id.startsWith("fish_") || item.id.startsWith("item_fish_") ||
+            item.id.startsWith("bait_") || item.id.contains("potion") ||
+            item.id.contains("scroll") || item.id.contains("chest") ||
+            item.id.contains("pet_food") || item.id.contains("evo_crystal") ||
+            item.id.contains("fertilizer")
+
+    val useButtonLabel = when {
+        item.itemType == "SEED" || item.id.startsWith("crop_seed_") -> "🌱 TANAM KE KEBUN"
+        item.itemType == "CROP" || item.id.startsWith("item_crop_") -> "🥗 MAKAN"
+        item.itemType == "FISH" || item.id.startsWith("fish_") -> "🐟 KONSUMSI"
+        item.itemType == "BAIT" || item.id.startsWith("bait_") -> "🎣 PASANG UMPAN"
+        item.id.contains("chest") -> "📦 BUKA PETI"
+        item.id.contains("potion") -> "🧪 MINUM"
+        item.id.contains("fertilizer") -> "✨ SEBAR PUPUK"
+        else -> "⚡ PAKAI"
+    }
 
     Box(
         modifier = Modifier
@@ -730,7 +744,7 @@ fun PixelItemDetailInspector(
                         modifier = Modifier.weight(1f),
                         testTag = "inspector_use_btn"
                     ) {
-                        Text("⚡ PAKAI", fontFamily = PressStartFontFamily, fontSize = 7.sp, color = Color.White)
+                        Text(useButtonLabel, fontFamily = PressStartFontFamily, fontSize = 6.sp, color = Color.White)
                     }
                 }
 

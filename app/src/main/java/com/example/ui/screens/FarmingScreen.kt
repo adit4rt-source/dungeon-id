@@ -410,13 +410,26 @@ fun PixelPlantSeedDialog(
                     LazyColumn(modifier = Modifier.heightIn(max = 280.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         items(seedItems) { seedItem ->
                             val cropId = seedItem.id.removePrefix("crop_seed_")
-                            val cropDef = GameDatabaseRegistry.CROPS.find { it.id == cropId || it.id == cropId.removePrefix("crop_") }
+                            val cleanCropId = when (cropId.lowercase()) {
+                                "crop_corn", "corn" -> "jagung"
+                                "crop_carrot", "carrot" -> "wortel"
+                                "crop_wheat", "wheat" -> "gandum"
+                                "crop_spinach", "spinach" -> "bayam"
+                                "crop_potato", "potato" -> "kentang"
+                                "crop_tomato", "tomato" -> "tomat"
+                                "crop_chili", "chili" -> "cabai"
+                                "crop_melon", "melon" -> "semangka"
+                                "crop_dragonfruit", "dragonfruit" -> "dragon_fruit_crop"
+                                "crop_aether", "aether" -> "crystal_flower"
+                                else -> cropId.removePrefix("crop_")
+                            }
+                            val cropDef = GameDatabaseRegistry.CROPS.find { it.id == cleanCropId || it.id == cropId }
 
                             PixelFrame(
                                 backgroundColor = Color(0xFF1D2E22),
                                 borderColor = Color(0xFF2E7D32),
                                 contentPadding = 6.dp,
-                                modifier = Modifier.fillMaxWidth().clickable { onSelectCrop(cropId) }
+                                modifier = Modifier.fillMaxWidth().clickable { onSelectCrop(cropDef?.id ?: seedItem.id) }
                             ) {
                                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                     Text(seedItem.iconEmoji, fontSize = 22.sp)

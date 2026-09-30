@@ -45,6 +45,7 @@ import com.example.ui.components.PlayerTopAppBar
 import com.example.ui.components.RetroGold
 import com.example.util.LocalSoundManager
 import com.example.util.ProvideSoundManager
+import com.example.ui.screens.AuthPortalScreen
 import com.example.ui.screens.AdventureScreen
 import com.example.ui.screens.FarmingScreen
 import com.example.ui.screens.FishingScreen
@@ -93,7 +94,7 @@ fun MainGameApp(
     val userAccount by viewModel.activeUserAccount.collectAsStateWithLifecycle()
     val allAccounts by viewModel.allAccounts.collectAsStateWithLifecycle()
 
-    BackHandler(enabled = currentScreen != GameScreen.HOME) {
+    BackHandler(enabled = userAccount != null && currentScreen != GameScreen.HOME) {
         soundManager.playMenuClick()
         currentScreen = GameScreen.HOME
     }
@@ -105,15 +106,19 @@ fun MainGameApp(
     }
 
     // Dynamic retro 8-bit backsound music for Desa, Kebun, Mancing, and Berburu
-    LaunchedEffect(currentScreen) {
-        when (currentScreen) {
-            GameScreen.HOME, GameScreen.MARKET, GameScreen.PETS -> soundManager.playDesaBgm()
-            GameScreen.FARMING -> soundManager.playKebunBgm()
-            GameScreen.FISHING -> soundManager.playMancingBgm()
-            GameScreen.ADVENTURE -> soundManager.playBerburuBgm()
-            GameScreen.INVENTORY -> {
-                if (soundManager.getCurrentBgm() == null) {
-                    soundManager.playDesaBgm()
+    LaunchedEffect(userAccount, currentScreen) {
+        if (userAccount == null) {
+            soundManager.playDesaBgm()
+        } else {
+            when (currentScreen) {
+                GameScreen.HOME, GameScreen.MARKET, GameScreen.PETS -> soundManager.playDesaBgm()
+                GameScreen.FARMING -> soundManager.playKebunBgm()
+                GameScreen.FISHING -> soundManager.playMancingBgm()
+                GameScreen.ADVENTURE -> soundManager.playBerburuBgm()
+                GameScreen.INVENTORY -> {
+                    if (soundManager.getCurrentBgm() == null) {
+                        soundManager.playDesaBgm()
+                    }
                 }
             }
         }
@@ -125,129 +130,156 @@ fun MainGameApp(
         }
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
-            PlayerTopAppBar(
-                profile = player,
-                userAccount = userAccount,
-                onOpenAccountDialog = { showAccountDialog = true }
-            )
-        },
-        bottomBar = {
-            PixelBottomNavigationBar(
-                currentScreen = currentScreen,
-                onSelectScreen = { selectedScreen ->
-                    if (currentScreen != selectedScreen) {
-                        soundManager.playTabSwitch()
-                        currentScreen = selectedScreen
-                    }
-                }
-            )
-        },
-        snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState)
-        }
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            AnimatedContent(
-                targetState = currentScreen,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "screen_transition"
-            ) { screen ->
-                when (screen) {
-                    GameScreen.HOME -> HomeScreen(
-                        viewModel = viewModel,
-                        onNavigateToFishing = { currentScreen = GameScreen.FISHING },
-                        onNavigateToFarming = { currentScreen = GameScreen.FARMING },
-                        onNavigateToPets = { currentScreen = GameScreen.PETS },
-                        onNavigateToAdventure = { currentScreen = GameScreen.ADVENTURE },
-                        onNavigateToMarket = { currentScreen = GameScreen.MARKET },
-                        onNavigateToInventory = { currentScreen = GameScreen.INVENTORY }
-                    )
-                    GameScreen.INVENTORY -> InventoryScreen(
-                        viewModel = viewModel,
-                        onNavigateBack = { currentScreen = GameScreen.HOME }
-                    )
-                    GameScreen.FISHING -> FishingScreen(
-                        viewModel = viewModel,
-                        onNavigateBack = { currentScreen = GameScreen.HOME }
-                    )
-                    GameScreen.FARMING -> FarmingScreen(
-                        viewModel = viewModel,
-                        onNavigateBack = { currentScreen = GameScreen.HOME },
-                        onNavigateToMarket = { currentScreen = GameScreen.MARKET }
-                    )
-                    GameScreen.PETS -> PetScreen(
-                        viewModel = viewModel,
-                        onNavigateBack = { currentScreen = GameScreen.HOME }
-                    )
-                    GameScreen.ADVENTURE -> AdventureScreen(
-                        viewModel = viewModel,
-                        onNavigateBack = { currentScreen = GameScreen.HOME }
-                    )
-                    GameScreen.MARKET -> MarketScreen(
-                        viewModel = viewModel,
-                        onNavigateBack = { currentScreen = GameScreen.HOME }
-                    )
-                }
+    if (userAccount == null) {
+        AuthPortalScreen(
+            savedAccounts = allAccounts,
+            onLogin = { identifier, pass, callback ->
+                viewModel.loginWithCredentials(identifier, pass, callback)
+            },
+            onRegister = { username, email, pass, discord, callback ->
+                viewModel.register(username, email, pass, discord, callback)
+            },
+            onLoginDiscord = { discordTag, email, callback ->
+                viewModel.loginWithDiscord(discordTag, email, callback)
+            },
+            onLoginGoogle = { username, email ->
+                viewModel.loginWithGoogle(username, email)
+            },
+            onLoginFacebook = { username, email ->
+                viewModel.loginWithFacebook(username, email)
+            },
+            onGuestLogin = {
+                viewModel.loginAsGuest()
+            },
+            onSwitchAccount = { accountId ->
+                viewModel.switchAccount(accountId)
             }
-
-            if (showAccountDialog) {
-                AccountDialog(
-                    currentAccount = userAccount,
-                    allAccounts = allAccounts,
-                    onDismiss = { showAccountDialog = false },
-                    onLoginCredentials = { identifier, password, callback ->
-                        viewModel.loginWithCredentials(identifier, password) { success, msg ->
-                            callback(success, msg)
-                            if (success) showAccountDialog = false
+        )
+    } else {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            topBar = {
+                PlayerTopAppBar(
+                    profile = player,
+                    userAccount = userAccount,
+                    onOpenAccountDialog = { showAccountDialog = true }
+                )
+            },
+            bottomBar = {
+                PixelBottomNavigationBar(
+                    currentScreen = currentScreen,
+                    onSelectScreen = { selectedScreen ->
+                        if (currentScreen != selectedScreen) {
+                            soundManager.playTabSwitch()
+                            currentScreen = selectedScreen
                         }
-                    },
-                    onRegister = { username, email, password, discordTag, callback ->
-                        viewModel.register(username, email, password, discordTag) { success, msg ->
-                            callback(success, msg)
-                            if (success) showAccountDialog = false
-                        }
-                    },
-                    onLoginDiscord = { discordTag, email, callback ->
-                        viewModel.loginWithDiscord(discordTag, email) { success, msg ->
-                            callback(success, msg)
-                            if (success) showAccountDialog = false
-                        }
-                    },
-                    onLinkDiscord = { discordTag, callback ->
-                        viewModel.linkDiscord(discordTag) { success, msg ->
-                            callback(success, msg)
-                        }
-                    },
-                    onLoginGoogle = { username, email ->
-                        viewModel.loginWithGoogle(username, email)
-                        showAccountDialog = false
-                    },
-                    onLoginFacebook = { username, email ->
-                        viewModel.loginWithFacebook(username, email)
-                        showAccountDialog = false
-                    },
-                    onLoginGuest = {
-                        viewModel.loginAsGuest()
-                        showAccountDialog = false
-                    },
-                    onLinkProvider = { provider ->
-                        viewModel.linkProvider(provider)
-                    },
-                    onSwitchAccount = { accountId ->
-                        viewModel.switchAccount(accountId)
-                    },
-                    onLogout = {
-                        viewModel.logout()
-                        showAccountDialog = false
                     }
                 )
+            },
+            snackbarHost = {
+                SnackbarHost(hostState = snackbarHostState)
+            }
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                AnimatedContent(
+                    targetState = currentScreen,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "screen_transition"
+                ) { screen ->
+                    when (screen) {
+                        GameScreen.HOME -> HomeScreen(
+                            viewModel = viewModel,
+                            onNavigateToFishing = { currentScreen = GameScreen.FISHING },
+                            onNavigateToFarming = { currentScreen = GameScreen.FARMING },
+                            onNavigateToPets = { currentScreen = GameScreen.PETS },
+                            onNavigateToAdventure = { currentScreen = GameScreen.ADVENTURE },
+                            onNavigateToMarket = { currentScreen = GameScreen.MARKET },
+                            onNavigateToInventory = { currentScreen = GameScreen.INVENTORY }
+                        )
+                        GameScreen.INVENTORY -> InventoryScreen(
+                            viewModel = viewModel,
+                            onNavigateBack = { currentScreen = GameScreen.HOME }
+                        )
+                        GameScreen.FISHING -> FishingScreen(
+                            viewModel = viewModel,
+                            onNavigateBack = { currentScreen = GameScreen.HOME }
+                        )
+                        GameScreen.FARMING -> FarmingScreen(
+                            viewModel = viewModel,
+                            onNavigateBack = { currentScreen = GameScreen.HOME },
+                            onNavigateToMarket = { currentScreen = GameScreen.MARKET }
+                        )
+                        GameScreen.PETS -> PetScreen(
+                            viewModel = viewModel,
+                            onNavigateBack = { currentScreen = GameScreen.HOME }
+                        )
+                        GameScreen.ADVENTURE -> AdventureScreen(
+                            viewModel = viewModel,
+                            onNavigateBack = { currentScreen = GameScreen.HOME }
+                        )
+                        GameScreen.MARKET -> MarketScreen(
+                            viewModel = viewModel,
+                            onNavigateBack = { currentScreen = GameScreen.HOME }
+                        )
+                    }
+                }
+
+                if (showAccountDialog) {
+                    AccountDialog(
+                        currentAccount = userAccount,
+                        allAccounts = allAccounts,
+                        onDismiss = { showAccountDialog = false },
+                        onLoginCredentials = { identifier, password, callback ->
+                            viewModel.loginWithCredentials(identifier, password) { success, msg ->
+                                callback(success, msg)
+                                if (success) showAccountDialog = false
+                            }
+                        },
+                        onRegister = { username, email, password, discordTag, callback ->
+                            viewModel.register(username, email, password, discordTag) { success, msg ->
+                                callback(success, msg)
+                                if (success) showAccountDialog = false
+                            }
+                        },
+                        onLoginDiscord = { discordTag, email, callback ->
+                            viewModel.loginWithDiscord(discordTag, email) { success, msg ->
+                                callback(success, msg)
+                                if (success) showAccountDialog = false
+                            }
+                        },
+                        onLinkDiscord = { discordTag, callback ->
+                            viewModel.linkDiscord(discordTag) { success, msg ->
+                                callback(success, msg)
+                            }
+                        },
+                        onLoginGoogle = { username, email ->
+                            viewModel.loginWithGoogle(username, email)
+                            showAccountDialog = false
+                        },
+                        onLoginFacebook = { username, email ->
+                            viewModel.loginWithFacebook(username, email)
+                            showAccountDialog = false
+                        },
+                        onLoginGuest = {
+                            viewModel.loginAsGuest()
+                            showAccountDialog = false
+                        },
+                        onLinkProvider = { provider ->
+                            viewModel.linkProvider(provider)
+                        },
+                        onSwitchAccount = { accountId ->
+                            viewModel.switchAccount(accountId)
+                        },
+                        onLogout = {
+                            viewModel.logout()
+                            showAccountDialog = false
+                        }
+                    )
+                }
             }
         }
     }

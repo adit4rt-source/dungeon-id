@@ -20,8 +20,7 @@ data class UserAccountEntity(
 
 @Entity(tableName = "player_profile")
 data class PlayerProfileEntity(
-    @PrimaryKey val id: Int = 1,
-    val accountId: String = "guest_default",
+    @PrimaryKey val accountId: String,
     val name: String = "Petualang",
     val level: Int = 1,
     val exp: Int = 0,
@@ -30,17 +29,21 @@ data class PlayerProfileEntity(
     val maxHp: Int = 100,
     val energy: Int = 50,
     val maxEnergy: Int = 50,
-    val gold: Int = 250,
-    val diamonds: Int = 15,
-    val upgradeStones: Int = 3,
+    val gold: Int = 350,
+    val diamonds: Int = 20,
+    val upgradeStones: Int = 4,
     val fishingRodLevel: Int = 1,
     val selectedBaitId: String = "bait_cacing",
     val lastEnergyUpdateMillis: Long = System.currentTimeMillis()
 )
 
-@Entity(tableName = "farm_plots")
+@Entity(
+    tableName = "farm_plots",
+    primaryKeys = ["accountId", "plotIndex"]
+)
 data class FarmPlotEntity(
-    @PrimaryKey val plotIndex: Int,
+    val accountId: String,
+    val plotIndex: Int,
     val isUnlocked: Boolean = false,
     val cropId: String? = null,
     val plantedAtMillis: Long = 0L,
@@ -53,6 +56,7 @@ data class FarmPlotEntity(
 @Entity(tableName = "pets")
 data class PetEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val accountId: String,
     val speciesId: String,
     val nickname: String,
     val level: Int = 1,
@@ -66,9 +70,13 @@ data class PetEntity(
     val expeditionReturnMillis: Long = 0L
 )
 
-@Entity(tableName = "inventory_items")
+@Entity(
+    tableName = "inventory_items",
+    primaryKeys = ["accountId", "id"]
+)
 data class InventoryItemEntity(
-    @PrimaryKey val id: String,
+    val accountId: String,
+    val id: String,
     val itemType: String,
     val name: String,
     val count: Int,
@@ -77,9 +85,13 @@ data class InventoryItemEntity(
     val sellPrice: Int
 )
 
-@Entity(tableName = "fish_dex")
+@Entity(
+    tableName = "fish_dex",
+    primaryKeys = ["accountId", "fishId"]
+)
 data class FishDexEntity(
-    @PrimaryKey val fishId: String,
+    val accountId: String,
+    val fishId: String,
     val fishName: String,
     val rarity: String,
     val iconEmoji: String,
@@ -88,9 +100,13 @@ data class FishDexEntity(
     val isDiscovered: Boolean = false
 )
 
-@Entity(tableName = "daily_quests")
+@Entity(
+    tableName = "daily_quests",
+    primaryKeys = ["accountId", "id"]
+)
 data class QuestEntity(
-    @PrimaryKey val id: String,
+    val accountId: String,
+    val id: String,
     val title: String,
     val description: String,
     val questType: String,

@@ -223,8 +223,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loginAsGuest() {
         viewModelScope.launch {
-            val account = repository.loginWithProvider("GUEST", "Petualang Guest", "guest@rpgrealm.local")
-            showToast("👤 Bermain sebagai Tamu (Guest Mode).")
+            val account = repository.loginAsGuest()
+            showToast("👤 Bermain sebagai Tamu (Guest Mode): ${account.username}")
         }
     }
 
@@ -248,7 +248,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     fun logout() {
         viewModelScope.launch {
             repository.logoutCurrentAccount()
-            showToast("Akun berhasil keluar (Logout). Kembali ke Guest.")
+            showToast("Akun berhasil keluar. Kembali ke Portal Login.")
         }
     }
 
@@ -257,7 +257,21 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val success = repository.plantSeed(plotIndex, cropId)
             if (success) {
-                val crop = GameDatabaseRegistry.CROPS.find { it.id == cropId }
+                val clean = cropId.removePrefix("crop_seed_").removePrefix("item_crop_")
+                val norm = when (clean.lowercase()) {
+                    "crop_corn", "corn" -> "jagung"
+                    "crop_carrot", "carrot" -> "wortel"
+                    "crop_wheat", "wheat" -> "gandum"
+                    "crop_spinach", "spinach" -> "bayam"
+                    "crop_potato", "potato" -> "kentang"
+                    "crop_tomato", "tomato" -> "tomat"
+                    "crop_chili", "chili" -> "cabai"
+                    "crop_melon", "melon" -> "semangka"
+                    "crop_dragonfruit", "dragonfruit" -> "dragon_fruit_crop"
+                    "crop_aether", "aether" -> "crystal_flower"
+                    else -> clean.removePrefix("crop_")
+                }
+                val crop = GameDatabaseRegistry.CROPS.find { it.id == norm || it.id == clean }
                 showToast("Berhasil menanam ${crop?.name ?: "Benih"}!")
             } else {
                 showToast("Gagal menanam benih (periksa inventaris).")

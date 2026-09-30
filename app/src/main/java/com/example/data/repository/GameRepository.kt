@@ -7,57 +7,76 @@ import com.example.data.local.entity.InventoryItemEntity
 import com.example.data.local.entity.PetEntity
 import com.example.data.local.entity.PlayerProfileEntity
 import com.example.data.local.entity.QuestEntity
+import com.example.data.local.entity.UserAccountEntity
 import com.example.data.model.FishDef
 import com.example.data.model.GameDatabaseRegistry
 import com.example.data.model.ItemRarity
 import com.example.data.model.ItemType
+import com.example.util.SecurityUtils
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
 
-import com.example.data.local.entity.UserAccountEntity
-import com.example.util.SecurityUtils
-
+@OptIn(ExperimentalCoroutinesApi::class)
 class GameRepository(private val dao: GameDao) {
 
     val activeUserAccount: Flow<UserAccountEntity?> = dao.getActiveUserAccount()
     val allUserAccounts: Flow<List<UserAccountEntity>> = dao.getAllUserAccounts()
 
-    val playerProfile: Flow<PlayerProfileEntity?> = dao.getPlayerProfile()
-    val allPlots: Flow<List<FarmPlotEntity>> = dao.getAllPlots()
-    val allPets: Flow<List<PetEntity>> = dao.getAllPets()
-    val equippedPet: Flow<PetEntity?> = dao.getEquippedPet()
-    val inventory: Flow<List<InventoryItemEntity>> = dao.getAllInventory()
-    val fishDex: Flow<List<FishDexEntity>> = dao.getAllFishDex()
-    val dailyQuests: Flow<List<QuestEntity>> = dao.getAllQuests()
+    val playerProfile: Flow<PlayerProfileEntity?> = activeUserAccount.flatMapLatest { account ->
+        if (account == null) flowOf(null) else dao.getPlayerProfile(account.id)
+    }
+
+    val allPlots: Flow<List<FarmPlotEntity>> = activeUserAccount.flatMapLatest { account ->
+        if (account == null) flowOf(emptyList()) else dao.getAllPlots(account.id)
+    }
+
+    val allPets: Flow<List<PetEntity>> = activeUserAccount.flatMapLatest { account ->
+        if (account == null) flowOf(emptyList()) else dao.getAllPets(account.id)
+    }
+
+    val equippedPet: Flow<PetEntity?> = activeUserAccount.flatMapLatest { account ->
+        if (account == null) flowOf(null) else dao.getEquippedPet(account.id)
+    }
+
+    val inventory: Flow<List<InventoryItemEntity>> = activeUserAccount.flatMapLatest { account ->
+        if (account == null) flowOf(emptyList()) else dao.getAllInventory(account.id)
+    }
+
+    val fishDex: Flow<List<FishDexEntity>> = activeUserAccount.flatMapLatest { account ->
+        if (account == null) flowOf(emptyList()) else dao.getAllFishDex(account.id)
+    }
+
+    val dailyQuests: Flow<List<QuestEntity>> = activeUserAccount.flatMapLatest { account ->
+        if (account == null) flowOf(emptyList()) else dao.getAllQuests(account.id)
+    }
+
+    private suspend fun getActiveAccountId(): String? {
+        return dao.getActiveUserAccountSync()?.id
+    }
 
     suspend fun initializeGameIfNeeded() = withContext(Dispatchers.IO) {
-        val currentProfile = dao.getPlayerProfileSync()
-        val currentAccount = dao.getActiveUserAccountSync()
-
-        if (currentAccount == null) {
-            val defaultGuest = UserAccountEntity(
-                id = "guest_default",
-                username = "Petualang Muda",
-                email = "guest@rpgrealm.local",
-                provider = "GUEST",
-                avatarUrl = null,
-                isCurrentActive = true,
-                linkedProviders = "GUEST",
-                createdAtMillis = System.currentTimeMillis(),
-                lastLoginMillis = System.currentTimeMillis()
-            )
-            dao.insertOrUpdateUserAccount(defaultGuest)
+        val currentAccount = dao.getActiveUserAccountSync() ?: return@withContext
+        val currentProfile = dao.getPlayerProfileSync(currentAccount.id)
+        if (currentProfile != null) {
+            checkAndRecoverEnergy(currentProfile)
+        } else {
+            initializeAccountDataIfNeeded(currentAccount.id, currentAccount.username)
         }
+    }
 
-        if (currentProfile == null) {
+    suspend fun initializeAccountDataIfNeeded(accountId: String, username: String) = withContext(Dispatchers.IO) {
+        val existingProfile = dao.getPlayerProfileSync(accountId)
+        if (existingProfile == null) {
             val starterProfile = PlayerProfileEntity(
-                id = 1,
-                accountId = currentAccount?.id ?: "guest_default",
-                name = currentAccount?.username ?: "Petualang Muda",
+                accountId = accountId,
+                name = username.ifBlank { "Petualang" },
                 level = 1,
                 exp = 0,
                 maxExp = 100,
@@ -69,14 +88,15 @@ class GameRepository(private val dao: GameDao) {
                 diamonds = 20,
                 upgradeStones = 4,
                 fishingRodLevel = 1,
-                selectedBaitId = "bait_cacing",
+                selectedBaitId = "bait_bait_cacing",
                 lastEnergyUpdateMillis = System.currentTimeMillis()
             )
             dao.insertOrUpdatePlayer(starterProfile)
 
-            // Initialize 8 farm plots (0..3 unlocked, 4..7 locked)
+            // 8 Farm plots (0..3 unlocked, 4..7 locked)
             val plots = (0 until 8).map { index ->
                 FarmPlotEntity(
+                    accountId = accountId,
                     plotIndex = index,
                     isUnlocked = index < 4,
                     cropId = null,
@@ -89,9 +109,10 @@ class GameRepository(private val dao: GameDao) {
             }
             dao.insertPlots(plots)
 
-            // Starter pet: Serigala Salju
+            // Starter pet: Lupin (Serigala Salju)
             val starterPet = PetEntity(
                 id = 0,
+                accountId = accountId,
                 speciesId = "pet_wolf",
                 nickname = "Lupin",
                 level = 1,
@@ -104,20 +125,21 @@ class GameRepository(private val dao: GameDao) {
             )
             dao.insertPet(starterPet)
 
-            // Starter inventory
+            // Starter inventory items (Proper Indonesian IDs)
             val starterItems = listOf(
-                InventoryItemEntity("crop_seed_crop_corn", ItemType.SEED.name, "Benih Jagung", 5, "🌽", ItemRarity.COMMON.name, 15),
-                InventoryItemEntity("crop_seed_crop_carrot", ItemType.SEED.name, "Benih Wortel", 3, "🥕", ItemRarity.COMMON.name, 28),
-                InventoryItemEntity("bait_bait_cacing", ItemType.BAIT.name, "Cacing Tanah", 15, "🪱", ItemRarity.COMMON.name, 5),
-                InventoryItemEntity("bait_bait_pelet", ItemType.BAIT.name, "Pelet Harum", 5, "🟤", ItemRarity.UNCOMMON.name, 15),
-                InventoryItemEntity("item_potion_hp", ItemType.POTION.name, "Ramuan Darah", 3, "🧪", ItemRarity.UNCOMMON.name, 50),
-                InventoryItemEntity("item_fertilizer", ItemType.MATERIAL.name, "Pupuk Organik", 3, "✨", ItemRarity.COMMON.name, 25)
+                InventoryItemEntity(accountId, "crop_seed_jagung", ItemType.SEED.name, "Benih Jagung", 5, "🌽", ItemRarity.COMMON.name, 15),
+                InventoryItemEntity(accountId, "crop_seed_wortel", ItemType.SEED.name, "Benih Wortel", 3, "🥕", ItemRarity.COMMON.name, 28),
+                InventoryItemEntity(accountId, "bait_bait_cacing", ItemType.BAIT.name, "Cacing Tanah", 15, "🪱", ItemRarity.COMMON.name, 5),
+                InventoryItemEntity(accountId, "bait_bait_pelet", ItemType.BAIT.name, "Pelet Harum", 5, "🟤", ItemRarity.UNCOMMON.name, 15),
+                InventoryItemEntity(accountId, "item_potion_hp", ItemType.POTION.name, "Ramuan Darah", 3, "🧪", ItemRarity.UNCOMMON.name, 50),
+                InventoryItemEntity(accountId, "item_fertilizer", ItemType.MATERIAL.name, "Pupuk Organik", 3, "✨", ItemRarity.COMMON.name, 25)
             )
             starterItems.forEach { dao.insertItem(it) }
 
-            // Initialize Fish Dex
+            // Fish Dex
             val initialDex = GameDatabaseRegistry.FISHES.map { fish ->
                 FishDexEntity(
+                    accountId = accountId,
                     fishId = fish.id,
                     fishName = fish.name,
                     rarity = fish.rarity.name,
@@ -129,31 +151,16 @@ class GameRepository(private val dao: GameDao) {
             }
             dao.insertAllFishDex(initialDex)
 
-            // Initialize Daily Quests
+            // Daily Quests
             val initialQuests = listOf(
-                QuestEntity("q_fish_1", "Mancing Ikan Perdana", "Tangkap 3 ekor ikan jenis apapun di danau.", "FISH", 3, 0, false, false, 120, 40, 2),
-                QuestEntity("q_farm_1", "Panen Pertama Kebun", "Tanam dan panen 4 hasil pertanian.", "FARM", 4, 0, false, false, 150, 50, 3),
-                QuestEntity("q_pet_1", "Kasih Sayang Companion", "Beri makan atau latih pet peliharaanmu 2 kali.", "PET", 2, 0, false, false, 100, 35, 2),
-                QuestEntity("q_hunt_1", "Taklukkan Hutan Lumut", "Kalahkan 3 monster di dungeon petualangan.", "DUNGEON", 3, 0, false, false, 200, 70, 5)
+                QuestEntity(accountId, "q_fish_1", "Mancing Ikan Perdana", "Tangkap 3 ekor ikan jenis apapun di danau.", "FISH", 3, 0, false, false, 120, 40, 2),
+                QuestEntity(accountId, "q_farm_1", "Panen Pertama Kebun", "Tanam dan panen 4 hasil pertanian.", "FARM", 4, 0, false, false, 150, 50, 3),
+                QuestEntity(accountId, "q_pet_1", "Kasih Sayang Companion", "Beri makan atau latih pet peliharaanmu 2 kali.", "PET", 2, 0, false, false, 100, 35, 2),
+                QuestEntity(accountId, "q_hunt_1", "Taklukkan Hutan Lumut", "Kalahkan 3 monster di dungeon petualangan.", "DUNGEON", 3, 0, false, false, 200, 70, 5)
             )
             dao.insertQuests(initialQuests)
         } else {
-            // Check energy recovery
-            checkAndRecoverEnergy(currentProfile)
-
-            // Ensure any new fishes in registry are included in FishDex
-            val allDex = GameDatabaseRegistry.FISHES.map { fish ->
-                FishDexEntity(
-                    fishId = fish.id,
-                    fishName = fish.name,
-                    rarity = fish.rarity.name,
-                    iconEmoji = fish.iconEmoji,
-                    countCaught = 0,
-                    maxWeightKg = 0f,
-                    isDiscovered = false
-                )
-            }
-            dao.insertAllFishDex(allDex)
+            checkAndRecoverEnergy(existingProfile)
         }
     }
 
@@ -173,13 +180,15 @@ class GameRepository(private val dao: GameDao) {
 
     // --- Player Management ---
     suspend fun addGold(amount: Int) = withContext(Dispatchers.IO) {
-        dao.getPlayerProfileSync()?.let {
+        val accountId = getActiveAccountId() ?: return@withContext
+        dao.getPlayerProfileSync(accountId)?.let {
             dao.insertOrUpdatePlayer(it.copy(gold = max(0, it.gold + amount)))
         }
     }
 
     suspend fun spendGold(amount: Int): Boolean = withContext(Dispatchers.IO) {
-        val profile = dao.getPlayerProfileSync() ?: return@withContext false
+        val accountId = getActiveAccountId() ?: return@withContext false
+        val profile = dao.getPlayerProfileSync(accountId) ?: return@withContext false
         if (profile.gold >= amount) {
             dao.insertOrUpdatePlayer(profile.copy(gold = profile.gold - amount))
             true
@@ -189,7 +198,8 @@ class GameRepository(private val dao: GameDao) {
     }
 
     suspend fun spendDiamonds(amount: Int): Boolean = withContext(Dispatchers.IO) {
-        val profile = dao.getPlayerProfileSync() ?: return@withContext false
+        val accountId = getActiveAccountId() ?: return@withContext false
+        val profile = dao.getPlayerProfileSync(accountId) ?: return@withContext false
         if (profile.diamonds >= amount) {
             dao.insertOrUpdatePlayer(profile.copy(diamonds = profile.diamonds - amount))
             true
@@ -199,7 +209,8 @@ class GameRepository(private val dao: GameDao) {
     }
 
     suspend fun useEnergy(amount: Int): Boolean = withContext(Dispatchers.IO) {
-        val profile = dao.getPlayerProfileSync() ?: return@withContext false
+        val accountId = getActiveAccountId() ?: return@withContext false
+        val profile = dao.getPlayerProfileSync(accountId) ?: return@withContext false
         if (profile.energy >= amount) {
             dao.insertOrUpdatePlayer(
                 profile.copy(
@@ -214,25 +225,29 @@ class GameRepository(private val dao: GameDao) {
     }
 
     suspend fun restoreEnergy(amount: Int) = withContext(Dispatchers.IO) {
-        val profile = dao.getPlayerProfileSync() ?: return@withContext
+        val accountId = getActiveAccountId() ?: return@withContext
+        val profile = dao.getPlayerProfileSync(accountId) ?: return@withContext
         val newEnergy = min(profile.maxEnergy, profile.energy + amount)
         dao.insertOrUpdatePlayer(profile.copy(energy = newEnergy))
     }
 
     suspend fun restoreHp(amount: Int) = withContext(Dispatchers.IO) {
-        val profile = dao.getPlayerProfileSync() ?: return@withContext
+        val accountId = getActiveAccountId() ?: return@withContext
+        val profile = dao.getPlayerProfileSync(accountId) ?: return@withContext
         val newHp = min(profile.maxHp, profile.hp + amount)
         dao.insertOrUpdatePlayer(profile.copy(hp = newHp))
     }
 
     suspend fun damagePlayer(amount: Int) = withContext(Dispatchers.IO) {
-        val profile = dao.getPlayerProfileSync() ?: return@withContext
+        val accountId = getActiveAccountId() ?: return@withContext
+        val profile = dao.getPlayerProfileSync(accountId) ?: return@withContext
         val newHp = max(1, profile.hp - amount)
         dao.insertOrUpdatePlayer(profile.copy(hp = newHp))
     }
 
     suspend fun addPlayerExp(expGain: Int) = withContext(Dispatchers.IO) {
-        val profile = dao.getPlayerProfileSync() ?: return@withContext
+        val accountId = getActiveAccountId() ?: return@withContext
+        val profile = dao.getPlayerProfileSync(accountId) ?: return@withContext
         var currentExp = profile.exp + expGain
         var level = profile.level
         var maxExp = profile.maxExp
@@ -265,7 +280,8 @@ class GameRepository(private val dao: GameDao) {
     }
 
     suspend fun upgradeFishingRod(): Result<Int> = withContext(Dispatchers.IO) {
-        val profile = dao.getPlayerProfileSync() ?: return@withContext Result.failure(Exception("Profil tidak ditemukan"))
+        val accountId = getActiveAccountId() ?: return@withContext Result.failure(Exception("Akun belum aktif"))
+        val profile = dao.getPlayerProfileSync(accountId) ?: return@withContext Result.failure(Exception("Profil tidak ditemukan"))
         val currentLevel = profile.fishingRodLevel
         if (currentLevel >= GameDatabaseRegistry.ROD_TIERS.size) {
             return@withContext Result.failure(Exception("Alat pancing sudah mencapai level maksimum!"))
@@ -298,12 +314,14 @@ class GameRepository(private val dao: GameDao) {
         rarity: ItemRarity,
         sellPrice: Int
     ) = withContext(Dispatchers.IO) {
-        val existing = dao.getItemById(itemId)
+        val accountId = getActiveAccountId() ?: return@withContext
+        val existing = dao.getItemById(accountId, itemId)
         if (existing != null) {
             dao.insertItem(existing.copy(count = existing.count + count))
         } else {
             dao.insertItem(
                 InventoryItemEntity(
+                    accountId = accountId,
                     id = itemId,
                     itemType = itemType.name,
                     name = name,
@@ -317,12 +335,13 @@ class GameRepository(private val dao: GameDao) {
     }
 
     suspend fun removeItem(itemId: String, count: Int): Boolean = withContext(Dispatchers.IO) {
-        val existing = dao.getItemById(itemId) ?: return@withContext false
+        val accountId = getActiveAccountId() ?: return@withContext false
+        val existing = dao.getItemById(accountId, itemId) ?: return@withContext false
         if (existing.count > count) {
             dao.insertItem(existing.copy(count = existing.count - count))
             true
         } else if (existing.count == count) {
-            dao.deleteItemById(itemId)
+            dao.deleteItemById(accountId, itemId)
             true
         } else {
             false
@@ -330,11 +349,61 @@ class GameRepository(private val dao: GameDao) {
     }
 
     suspend fun getItemCount(itemId: String): Int = withContext(Dispatchers.IO) {
-        dao.getItemById(itemId)?.count ?: 0
+        val accountId = getActiveAccountId() ?: return@withContext 0
+        dao.getItemById(accountId, itemId)?.count ?: 0
     }
 
     suspend fun useConsumableItem(item: InventoryItemEntity): Result<String> = withContext(Dispatchers.IO) {
+        val accountId = getActiveAccountId() ?: return@withContext Result.failure(Exception("Akun belum masuk"))
         val itemId = item.id
+
+        // 1. If it's a seed or starts with crop_seed_: auto plant in first empty unlocked plot!
+        if (item.itemType == "SEED" || itemId.startsWith("crop_seed_")) {
+            val plots = dao.getPlotsSync(accountId)
+            val emptyPlot = plots.firstOrNull { it.isUnlocked && it.cropId == null }
+                ?: return@withContext Result.failure(Exception("Semua petak kebun terisi atau belum dibuka! Buka petak baru di Kebun."))
+            
+            val planted = plantSeed(emptyPlot.plotIndex, itemId)
+            return@withContext if (planted) {
+                Result.success("🌱 ${item.name} berhasil ditanam di Petak Kebun #${emptyPlot.plotIndex + 1}!")
+            } else {
+                Result.failure(Exception("Gagal menanam benih (periksa jumlah benih di tas)."))
+            }
+        }
+
+        // 2. If it's a crop: eat to restore HP & Stamina
+        if (item.itemType == "CROP" || itemId.startsWith("item_crop_")) {
+            if (!removeItem(itemId, 1)) return@withContext Result.failure(Exception("Item tidak ditemukan"))
+            restoreHp(25)
+            restoreEnergy(15)
+            return@withContext Result.success("🥗 Mengonsumsi ${item.name}! Pulih +25 HP & +15 Stamina.")
+        }
+
+        // 3. If it's a fish: eat or cook to restore HP & Stamina
+        if (item.itemType == "FISH" || itemId.startsWith("item_fish_") || itemId.startsWith("fish_")) {
+            if (!removeItem(itemId, 1)) return@withContext Result.failure(Exception("Item tidak ditemukan"))
+            restoreHp(35)
+            restoreEnergy(20)
+            return@withContext Result.success("🐟 Memasak & memakan ${item.name}! Pulih +35 HP & +20 Stamina.")
+        }
+
+        // 4. If it's bait: equip as active fishing bait
+        if (item.itemType == "BAIT" || itemId.startsWith("bait_")) {
+            val profile = dao.getPlayerProfileSync(accountId)
+                ?: return@withContext Result.failure(Exception("Profil pemain tidak ditemukan"))
+            dao.insertOrUpdatePlayer(profile.copy(selectedBaitId = itemId))
+            return@withContext Result.success("🎣 ${item.name} berhasil dipasang sebagai umpan pancing aktif!")
+        }
+
+        // 5. If it's fertilizer
+        if (itemId == "item_fertilizer") {
+            val plots = dao.getPlotsSync(accountId)
+            val targetPlot = plots.firstOrNull { it.cropId != null && !it.isFertilized }
+                ?: return@withContext Result.failure(Exception("Tidak ada tanaman yang perlu diberi pupuk di kebun."))
+            fertilizePlot(targetPlot.plotIndex)
+            return@withContext Result.success("✨ Berhasil memberi pupuk pada petak #${targetPlot.plotIndex + 1}!")
+        }
+
         when {
             itemId == "item_potion_hp" -> {
                 if (!removeItem(itemId, 1)) return@withContext Result.failure(Exception("Item tidak ditemukan"))
@@ -362,7 +431,7 @@ class GameRepository(private val dao: GameDao) {
                 Result.success("🎟️ Menggunakan Tiket Dungeon! Pulih +30 Stamina petualangan!")
             }
             itemId == "pet_food_kibble" || itemId == "pet_food_jerky" || itemId == "pet_food_nectar" -> {
-                val pet = dao.getEquippedPetSync() ?: return@withContext Result.failure(Exception("Pasang pet peliharaan terlebih dahulu!"))
+                val pet = dao.getEquippedPetSync(accountId) ?: return@withContext Result.failure(Exception("Pasang pet peliharaan terlebih dahulu!"))
                 if (!removeItem(itemId, 1)) return@withContext Result.failure(Exception("Item habis"))
                 val hungerBoost = when (itemId) {
                     "pet_food_kibble" -> 35
@@ -378,19 +447,19 @@ class GameRepository(private val dao: GameDao) {
                 Result.success("🍖 Memberi makan ${pet.nickname}! (+${hungerBoost}% Kenyang & +${expBoost} EXP Pet)")
             }
             itemId == "item_pet_potion_energy" -> {
-                val pet = dao.getEquippedPetSync() ?: return@withContext Result.failure(Exception("Pasang pet peliharaan terlebih dahulu!"))
+                val pet = dao.getEquippedPetSync(accountId) ?: return@withContext Result.failure(Exception("Pasang pet peliharaan terlebih dahulu!"))
                 if (!removeItem(itemId, 1)) return@withContext Result.failure(Exception("Item habis"))
                 dao.updatePet(pet.copy(hunger = 100, happiness = 100, exp = pet.exp + 50))
                 Result.success("⚡ Kebugaran dan kegembiraan ${pet.nickname} pulih 100%!")
             }
             itemId == "item_pet_evo_crystal" -> {
-                val pet = dao.getEquippedPetSync() ?: return@withContext Result.failure(Exception("Pasang pet peliharaan terlebih dahulu!"))
+                val pet = dao.getEquippedPetSync(accountId) ?: return@withContext Result.failure(Exception("Pasang pet peliharaan terlebih dahulu!"))
                 if (!removeItem(itemId, 1)) return@withContext Result.failure(Exception("Item habis"))
                 dao.updatePet(pet.copy(exp = pet.exp + 300, happiness = 100))
                 Result.success("🔮 Menyalurkan Kristal Jiwa ke ${pet.nickname}! Mendapatkan +300 EXP Pet!")
             }
             itemId == "item_pet_awakening_stone" -> {
-                val pet = dao.getEquippedPetSync() ?: return@withContext Result.failure(Exception("Pasang pet peliharaan terlebih dahulu!"))
+                val pet = dao.getEquippedPetSync(accountId) ?: return@withContext Result.failure(Exception("Pasang pet peliharaan terlebih dahulu!"))
                 if (!removeItem(itemId, 1)) return@withContext Result.failure(Exception("Item habis"))
                 dao.updatePet(pet.copy(exp = pet.exp + 800, happiness = 100))
                 Result.success("💎 Menyalurkan Batu Kebangkitan ke ${pet.nickname}! Mendapatkan +800 EXP Pet!")
@@ -400,10 +469,10 @@ class GameRepository(private val dao: GameDao) {
                 if (keyCount <= 0) return@withContext Result.failure(Exception("Butuh 1 Kunci Kayu (🗝️) untuk membuka peti ini!"))
                 removeItem("item_chest_wooden", 1)
                 removeItem("item_key_wooden", 1)
-                val goldReward = kotlin.random.Random.nextInt(150, 320)
+                val goldReward = Random.nextInt(150, 320)
                 addGold(goldReward)
                 addPlayerExp(25)
-                addItem("crop_seed_crop_carrot", ItemType.SEED, "Benih Wortel", 2, "🥕", ItemRarity.COMMON, 28)
+                addItem("crop_seed_wortel", ItemType.SEED, "Benih Wortel", 2, "🥕", ItemRarity.COMMON, 28)
                 Result.success("📦 Peti Kayu Terbuka! Mendapatkan +$goldReward Gold, 2 Benih Wortel & +25 EXP!")
             }
             itemId == "item_chest_iron" -> {
@@ -411,7 +480,7 @@ class GameRepository(private val dao: GameDao) {
                 if (keyCount <= 0) return@withContext Result.failure(Exception("Butuh 1 Kunci Besi (🔑) untuk membuka peti ini!"))
                 removeItem("item_chest_iron", 1)
                 removeItem("item_key_iron", 1)
-                val goldReward = kotlin.random.Random.nextInt(400, 750)
+                val goldReward = Random.nextInt(400, 750)
                 addGold(goldReward)
                 addPlayerExp(50)
                 addItem("item_upgrade_stone", ItemType.MATERIAL, "Batu Peningkat Tempa", 1, "🪨", ItemRarity.RARE, 100)
@@ -423,10 +492,10 @@ class GameRepository(private val dao: GameDao) {
                 if (keyCount <= 0) return@withContext Result.failure(Exception("Butuh 1 Kunci Emas (✨🔑) untuk membuka peti ini!"))
                 removeItem("item_chest_gold", 1)
                 removeItem("item_key_gold", 1)
-                val goldReward = kotlin.random.Random.nextInt(1500, 2500)
+                val goldReward = Random.nextInt(1500, 2500)
                 addGold(goldReward)
                 addPlayerExp(150)
-                val profile = dao.getPlayerProfileSync()
+                val profile = dao.getPlayerProfileSync(accountId)
                 if (profile != null) {
                     dao.insertOrUpdatePlayer(profile.copy(diamonds = profile.diamonds + 15, upgradeStones = profile.upgradeStones + 3))
                 }
@@ -440,12 +509,13 @@ class GameRepository(private val dao: GameDao) {
                 Result.success("🍲 Menikmati hidangan ${item.name}! Pulih +35 Stamina & +60 HP.")
             }
             else -> {
-                Result.failure(Exception("Item ini tidak dapat digunakan langsung."))
+                Result.failure(Exception("Item ${item.name} belum bisa dipakai langsung."))
             }
         }
     }
 
     suspend fun craftBlacksmithRecipe(recipeKey: String): Result<String> = withContext(Dispatchers.IO) {
+        val accountId = getActiveAccountId() ?: return@withContext Result.failure(Exception("Akun belum aktif"))
         when (recipeKey) {
             "forge_stone" -> {
                 val ironCount = getItemCount("item_iron_ore")
@@ -454,7 +524,7 @@ class GameRepository(private val dao: GameDao) {
                 removeItem("item_iron_ore", 3)
                 addItem("item_upgrade_stone", ItemType.MATERIAL, "Batu Peningkat Tempa", 1, "🪨", ItemRarity.RARE, 100)
                 addPlayerExp(20)
-                val profile = dao.getPlayerProfileSync()
+                val profile = dao.getPlayerProfileSync(accountId)
                 if (profile != null) {
                     dao.insertOrUpdatePlayer(profile.copy(upgradeStones = profile.upgradeStones + 1))
                 }
@@ -486,26 +556,61 @@ class GameRepository(private val dao: GameDao) {
 
     // --- Farming Management ---
     suspend fun unlockPlot(plotIndex: Int, cost: Int): Boolean = withContext(Dispatchers.IO) {
+        val accountId = getActiveAccountId() ?: return@withContext false
         if (!spendGold(cost)) return@withContext false
-        val plots = dao.getPlotsSync()
+        val plots = dao.getPlotsSync(accountId)
         val target = plots.find { it.plotIndex == plotIndex } ?: return@withContext false
         dao.updatePlot(target.copy(isUnlocked = true))
         true
     }
 
-    suspend fun plantSeed(plotIndex: Int, cropId: String): Boolean = withContext(Dispatchers.IO) {
-        val cropDef = GameDatabaseRegistry.CROPS.find { it.id == cropId } ?: return@withContext false
-        val seedItemId = "crop_seed_$cropId"
-        if (!removeItem(seedItemId, 1)) return@withContext false
+    suspend fun plantSeed(plotIndex: Int, cropIdOrSeed: String): Boolean = withContext(Dispatchers.IO) {
+        val accountId = getActiveAccountId() ?: return@withContext false
 
-        val plots = dao.getPlotsSync()
+        // Normalize crop ID from seed ID or crop name
+        val raw = cropIdOrSeed.removePrefix("crop_seed_").removePrefix("item_crop_").removePrefix("item_")
+        val normalizedId = when (raw.lowercase()) {
+            "crop_corn", "corn" -> "jagung"
+            "crop_carrot", "carrot" -> "wortel"
+            "crop_wheat", "wheat" -> "gandum"
+            "crop_spinach", "spinach" -> "bayam"
+            "crop_potato", "potato" -> "kentang"
+            "crop_tomato", "tomato" -> "tomat"
+            "crop_chili", "chili" -> "cabai"
+            "crop_melon", "melon" -> "semangka"
+            "crop_dragonfruit", "dragonfruit" -> "dragon_fruit_crop"
+            "crop_aether", "aether" -> "crystal_flower"
+            else -> raw.removePrefix("crop_")
+        }
+
+        val cropDef = GameDatabaseRegistry.CROPS.find { it.id == normalizedId || it.id == raw }
+            ?: return@withContext false
+
+        // Look for any matching seed in inventory
+        val candidateSeedIds = listOf(
+            "crop_seed_${cropDef.id}",
+            "crop_seed_crop_${cropDef.id}",
+            cropIdOrSeed,
+            "crop_seed_$raw"
+        ).distinct()
+
+        var removed = false
+        for (seedId in candidateSeedIds) {
+            if (removeItem(seedId, 1)) {
+                removed = true
+                break
+            }
+        }
+        if (!removed) return@withContext false
+
+        val plots = dao.getPlotsSync(accountId)
         val target = plots.find { it.plotIndex == plotIndex } ?: return@withContext false
         val now = System.currentTimeMillis()
         val durationMillis = cropDef.growDurationSeconds * 1000L
 
         dao.updatePlot(
             target.copy(
-                cropId = cropId,
+                cropId = cropDef.id,
                 plantedAtMillis = now,
                 harvestAtMillis = now + durationMillis,
                 isWatered = false,
@@ -517,11 +622,11 @@ class GameRepository(private val dao: GameDao) {
     }
 
     suspend fun waterPlot(plotIndex: Int): Boolean = withContext(Dispatchers.IO) {
-        val plots = dao.getPlotsSync()
+        val accountId = getActiveAccountId() ?: return@withContext false
+        val plots = dao.getPlotsSync(accountId)
         val target = plots.find { it.plotIndex == plotIndex } ?: return@withContext false
         if (target.cropId == null || target.isWatered) return@withContext false
 
-        // Watering reduces remaining time by 20%
         val now = System.currentTimeMillis()
         val remaining = max(0L, target.harvestAtMillis - now)
         val acceleratedHarvest = now + (remaining * 0.8f).toLong()
@@ -536,7 +641,8 @@ class GameRepository(private val dao: GameDao) {
     }
 
     suspend fun fertilizePlot(plotIndex: Int): Boolean = withContext(Dispatchers.IO) {
-        val plots = dao.getPlotsSync()
+        val accountId = getActiveAccountId() ?: return@withContext false
+        val plots = dao.getPlotsSync(accountId)
         val target = plots.find { it.plotIndex == plotIndex } ?: return@withContext false
         if (target.cropId == null || target.isFertilized) return@withContext false
 
@@ -556,7 +662,8 @@ class GameRepository(private val dao: GameDao) {
     }
 
     suspend fun harvestPlot(plotIndex: Int): Result<String> = withContext(Dispatchers.IO) {
-        val plots = dao.getPlotsSync()
+        val accountId = getActiveAccountId() ?: return@withContext Result.failure(Exception("Akun belum aktif"))
+        val plots = dao.getPlotsSync(accountId)
         val target = plots.find { it.plotIndex == plotIndex } ?: return@withContext Result.failure(Exception("Petak tidak ada"))
         val cropId = target.cropId ?: return@withContext Result.failure(Exception("Tidak ada tanaman"))
         val cropDef = GameDatabaseRegistry.CROPS.find { it.id == cropId } ?: return@withContext Result.failure(Exception("Tanaman tidak dikenal"))
@@ -566,11 +673,9 @@ class GameRepository(private val dao: GameDao) {
             return@withContext Result.failure(Exception("Tanaman belum matang untuk dipanen!"))
         }
 
-        // Calculate yield: 1-2 crops, double if fertilized
         val baseYield = Random.nextInt(1, 3)
         val totalYield = if (target.isFertilized) baseYield * 2 else baseYield
 
-        // Add to inventory
         addItem(
             itemId = "item_crop_${cropDef.id}",
             itemType = ItemType.CROP,
@@ -581,7 +686,6 @@ class GameRepository(private val dao: GameDao) {
             sellPrice = cropDef.sellPrice
         )
 
-        // Seed drop bonus chance
         if (Random.nextFloat() < 0.35f) {
             addItem(
                 itemId = "crop_seed_${cropDef.id}",
@@ -594,10 +698,8 @@ class GameRepository(private val dao: GameDao) {
             )
         }
 
-        // Add player EXP
         addPlayerExp(cropDef.expReward)
 
-        // Reset plot
         dao.updatePlot(
             target.copy(
                 cropId = null,
@@ -609,19 +711,16 @@ class GameRepository(private val dao: GameDao) {
             )
         )
 
-        // Progress quest
         incrementQuestProgress("FARM", totalYield)
-
         Result.success("Panen berhasil! Mendapatkan $totalYield ${cropDef.name} +${cropDef.expReward} EXP")
     }
 
     // --- Fishing Management ---
     suspend fun recordCatchFish(fish: FishDef, weightKg: Float): Int = withContext(Dispatchers.IO) {
-        // Value adjusted for weight
+        val accountId = getActiveAccountId() ?: return@withContext 0
         val weightMultiplier = (weightKg / fish.minWeightKg).coerceIn(1.0f, 2.5f)
         val finalPrice = (fish.basePrice * weightMultiplier).toInt()
 
-        // Add to inventory
         addItem(
             itemId = "item_fish_${fish.id}",
             itemType = ItemType.FISH,
@@ -632,8 +731,7 @@ class GameRepository(private val dao: GameDao) {
             sellPrice = finalPrice
         )
 
-        // Update Fish Dex
-        val existingDex = dao.getFishDexById(fish.id)
+        val existingDex = dao.getFishDexById(accountId, fish.id)
         if (existingDex != null) {
             dao.insertOrUpdateFishDex(
                 existingDex.copy(
@@ -645,6 +743,7 @@ class GameRepository(private val dao: GameDao) {
         } else {
             dao.insertOrUpdateFishDex(
                 FishDexEntity(
+                    accountId = accountId,
                     fishId = fish.id,
                     fishName = fish.name,
                     rarity = fish.rarity.name,
@@ -656,12 +755,8 @@ class GameRepository(private val dao: GameDao) {
             )
         }
 
-        // Add EXP
         addPlayerExp(fish.expReward)
-
-        // Increment quest
         incrementQuestProgress("FISH", 1)
-
         finalPrice
     }
 
@@ -672,7 +767,8 @@ class GameRepository(private val dao: GameDao) {
         customHungerBoost: Int = 30,
         customExpBoost: Int = 15
     ): Result<String> = withContext(Dispatchers.IO) {
-        val pet = dao.getPetById(petId) ?: return@withContext Result.failure(Exception("Pet tidak ditemukan"))
+        val accountId = getActiveAccountId() ?: return@withContext Result.failure(Exception("Akun belum aktif"))
+        val pet = dao.getPetById(accountId, petId) ?: return@withContext Result.failure(Exception("Pet tidak ditemukan"))
         if (!removeItem(foodItemId, 1)) return@withContext Result.failure(Exception("Bahan makanan habis"))
 
         val newHunger = min(100, pet.hunger + customHungerBoost)
@@ -690,7 +786,6 @@ class GameRepository(private val dao: GameDao) {
             maxExp = (maxExp * 1.3f).toInt()
         }
 
-        // Evolution check: Level 10 -> Stage 2, Level 25 -> Stage 3
         if (level >= 25 && stage < 3) {
             stage = 3
         } else if (level >= 10 && stage < 2) {
@@ -713,7 +808,8 @@ class GameRepository(private val dao: GameDao) {
     }
 
     suspend fun trainPet(petId: Int): Result<String> = withContext(Dispatchers.IO) {
-        val pet = dao.getPetById(petId) ?: return@withContext Result.failure(Exception("Pet tidak ditemukan"))
+        val accountId = getActiveAccountId() ?: return@withContext Result.failure(Exception("Akun belum aktif"))
+        val pet = dao.getPetById(accountId, petId) ?: return@withContext Result.failure(Exception("Pet tidak ditemukan"))
         if (pet.hunger < 15) {
             return@withContext Result.failure(Exception("Pet terlalu lapar untuk berlatih! Beri makan terlebih dahulu."))
         }
@@ -758,8 +854,9 @@ class GameRepository(private val dao: GameDao) {
     }
 
     suspend fun evolvePetManual(petId: Int): Result<String> = withContext(Dispatchers.IO) {
-        val pet = dao.getPetById(petId) ?: return@withContext Result.failure(Exception("Pet tidak ditemukan"))
-        val profile = dao.getPlayerProfileSync() ?: return@withContext Result.failure(Exception("Profil kosong"))
+        val accountId = getActiveAccountId() ?: return@withContext Result.failure(Exception("Akun belum aktif"))
+        val pet = dao.getPetById(accountId, petId) ?: return@withContext Result.failure(Exception("Pet tidak ditemukan"))
+        val profile = dao.getPlayerProfileSync(accountId) ?: return@withContext Result.failure(Exception("Profil kosong"))
 
         val requiredLevel = if (pet.evolutionStage == 1) 10 else 25
         if (pet.level < requiredLevel) {
@@ -782,14 +879,17 @@ class GameRepository(private val dao: GameDao) {
     }
 
     suspend fun equipPet(petId: Int) = withContext(Dispatchers.IO) {
-        dao.clearAllEquipped()
-        dao.setEquippedPet(petId)
+        val accountId = getActiveAccountId() ?: return@withContext
+        dao.clearAllEquipped(accountId)
+        dao.setEquippedPet(accountId, petId)
     }
 
     suspend fun adoptPet(speciesId: String, nickname: String, costGold: Int): Boolean = withContext(Dispatchers.IO) {
+        val accountId = getActiveAccountId() ?: return@withContext false
         if (!spendGold(costGold)) return@withContext false
         val newPet = PetEntity(
             id = 0,
+            accountId = accountId,
             speciesId = speciesId,
             nickname = nickname,
             level = 1,
@@ -806,7 +906,8 @@ class GameRepository(private val dao: GameDao) {
 
     // --- Quests ---
     suspend fun incrementQuestProgress(type: String, amount: Int) = withContext(Dispatchers.IO) {
-        val quests = dao.getQuestsSync()
+        val accountId = getActiveAccountId() ?: return@withContext
+        val quests = dao.getQuestsSync(accountId)
         for (q in quests) {
             if (q.questType == type && !q.isCompleted) {
                 val newCount = min(q.targetCount, q.currentCount + amount)
@@ -822,14 +923,15 @@ class GameRepository(private val dao: GameDao) {
     }
 
     suspend fun claimQuest(questId: String): Boolean = withContext(Dispatchers.IO) {
-        val quests = dao.getQuestsSync()
+        val accountId = getActiveAccountId() ?: return@withContext false
+        val quests = dao.getQuestsSync(accountId)
         val target = quests.find { it.id == questId } ?: return@withContext false
         if (!target.isCompleted || target.isClaimed) return@withContext false
 
         addGold(target.rewardGold)
         addPlayerExp(target.rewardExp)
         if (target.rewardDiamonds > 0) {
-            val p = dao.getPlayerProfileSync()
+            val p = dao.getPlayerProfileSync(accountId)
             if (p != null) {
                 dao.insertOrUpdatePlayer(p.copy(diamonds = p.diamonds + target.rewardDiamonds))
             }
@@ -890,16 +992,8 @@ class GameRepository(private val dao: GameDao) {
             lastLoginMillis = System.currentTimeMillis()
         )
         dao.insertOrUpdateUserAccount(newAccount)
+        initializeAccountDataIfNeeded(newAccount.id, newAccount.username)
 
-        val profile = dao.getPlayerProfileSync()
-        if (profile != null) {
-            dao.insertOrUpdatePlayer(
-                profile.copy(
-                    accountId = newAccount.id,
-                    name = trimmedUsername
-                )
-            )
-        }
         Result.success(newAccount)
     }
 
@@ -932,16 +1026,8 @@ class GameRepository(private val dao: GameDao) {
             lastLoginMillis = System.currentTimeMillis()
         )
         dao.insertOrUpdateUserAccount(updated)
+        initializeAccountDataIfNeeded(updated.id, updated.username)
 
-        val profile = dao.getPlayerProfileSync()
-        if (profile != null) {
-            dao.insertOrUpdatePlayer(
-                profile.copy(
-                    accountId = updated.id,
-                    name = updated.username
-                )
-            )
-        }
         Result.success(updated)
     }
 
@@ -950,72 +1036,53 @@ class GameRepository(private val dao: GameDao) {
         email: String? = null
     ): Result<UserAccountEntity> = withContext(Dispatchers.IO) {
         val trimmedTag = discordTag.trim()
-        if (trimmedTag.isBlank()) {
-            return@withContext Result.failure(Exception("Username atau Tag Discord tidak boleh kosong!"))
-        }
+        val dErr = SecurityUtils.validateDiscordTag(trimmedTag)
+        if (dErr != null) return@withContext Result.failure(Exception(dErr))
 
-        val existing = dao.getUserAccountByDiscord(trimmedTag)
-        if (existing != null) {
-            dao.clearActiveUserAccounts()
-            val currentLinked = existing.linkedProviders.split(",").filter { it.isNotBlank() }.toMutableList()
-            if (!currentLinked.contains("DISCORD")) currentLinked.add("DISCORD")
+        var account = dao.getUserAccountByDiscord(trimmedTag)
+        if (account == null) {
+            val username = trimmedTag.split("#").firstOrNull() ?: trimmedTag
+            val safeDiscord = trimmedTag.lowercase().replace("#", "_").replace(" ", "_")
+            val generatedEmail = email?.trim()?.ifBlank { null } ?: "$safeDiscord@discord.realm"
+            val accountId = "usr_dc_${System.currentTimeMillis()}_$safeDiscord"
 
-            val updated = existing.copy(
+            account = UserAccountEntity(
+                id = accountId,
+                username = username,
+                email = generatedEmail,
                 discordId = trimmedTag,
+                provider = "DISCORD",
+                avatarUrl = null,
                 isCurrentActive = true,
-                linkedProviders = currentLinked.joinToString(","),
+                linkedProviders = "DISCORD",
+                createdAtMillis = System.currentTimeMillis(),
+                lastLoginMillis = System.currentTimeMillis()
+            )
+            dao.clearActiveUserAccounts()
+            dao.insertOrUpdateUserAccount(account)
+            initializeAccountDataIfNeeded(account.id, account.username)
+        } else {
+            dao.clearActiveUserAccounts()
+            val updated = account.copy(
+                isCurrentActive = true,
                 lastLoginMillis = System.currentTimeMillis()
             )
             dao.insertOrUpdateUserAccount(updated)
-
-            val profile = dao.getPlayerProfileSync()
-            if (profile != null) {
-                dao.insertOrUpdatePlayer(
-                    profile.copy(
-                        accountId = updated.id,
-                        name = updated.username
-                    )
-                )
-            }
-            return@withContext Result.success(updated)
+            initializeAccountDataIfNeeded(updated.id, updated.username)
+            account = updated
         }
 
-        val safeTag = trimmedTag.lowercase().replace("#", "_").replace(" ", "_").replace("@", "_")
-        val accountId = "discord_$safeTag"
-        val userEmail = email?.trim()?.ifBlank { "$safeTag@discord.local" } ?: "$safeTag@discord.local"
-
-        dao.clearActiveUserAccounts()
-        val newDiscordAccount = UserAccountEntity(
-            id = accountId,
-            username = trimmedTag,
-            email = userEmail,
-            passwordHash = null,
-            discordId = trimmedTag,
-            provider = "DISCORD",
-            avatarUrl = null,
-            isCurrentActive = true,
-            linkedProviders = "DISCORD",
-            createdAtMillis = System.currentTimeMillis(),
-            lastLoginMillis = System.currentTimeMillis()
-        )
-        dao.insertOrUpdateUserAccount(newDiscordAccount)
-
-        val profile = dao.getPlayerProfileSync()
-        if (profile != null) {
-            dao.insertOrUpdatePlayer(
-                profile.copy(
-                    accountId = newDiscordAccount.id,
-                    name = newDiscordAccount.username
-                )
-            )
-        }
-        Result.success(newDiscordAccount)
+        Result.success(account)
     }
 
     suspend fun linkDiscordToCurrentAccount(discordTag: String): Result<String> = withContext(Dispatchers.IO) {
         val trimmedTag = discordTag.trim()
-        if (trimmedTag.isBlank()) {
-            return@withContext Result.failure(Exception("Discord Tag tidak boleh kosong!"))
+        val dErr = SecurityUtils.validateDiscordTag(trimmedTag)
+        if (dErr != null) return@withContext Result.failure(Exception(dErr))
+
+        val existing = dao.getUserAccountByDiscord(trimmedTag)
+        if (existing != null) {
+            return@withContext Result.failure(Exception("Tag Discord '$trimmedTag' sudah terhubung ke akun lain!"))
         }
 
         val active = dao.getActiveUserAccountSync()
@@ -1040,7 +1107,8 @@ class GameRepository(private val dao: GameDao) {
         email: String,
         avatarUrl: String? = null
     ): UserAccountEntity = withContext(Dispatchers.IO) {
-        val accountId = "${provider.lowercase()}_${if (email.isNotBlank()) email.lowercase().replace("@", "_at_").replace(".", "_") else username.lowercase().replace(" ", "_")}"
+        val safeIdentifier = if (email.isNotBlank()) email.lowercase().replace("@", "_at_").replace(".", "_") else username.lowercase().replace(" ", "_")
+        val accountId = "${provider.lowercase()}_$safeIdentifier"
         dao.clearActiveUserAccounts()
 
         val existing = dao.getUserAccountById(accountId)
@@ -1064,17 +1132,29 @@ class GameRepository(private val dao: GameDao) {
             lastLoginMillis = System.currentTimeMillis()
         )
         dao.insertOrUpdateUserAccount(account)
-
-        val profile = dao.getPlayerProfileSync()
-        if (profile != null) {
-            dao.insertOrUpdatePlayer(
-                profile.copy(
-                    accountId = account.id,
-                    name = username
-                )
-            )
-        }
+        initializeAccountDataIfNeeded(account.id, account.username)
         account
+    }
+
+    suspend fun loginAsGuest(): UserAccountEntity = withContext(Dispatchers.IO) {
+        dao.clearActiveUserAccounts()
+        val guestId = "guest_default"
+        var guest = dao.getUserAccountById(guestId)
+        if (guest == null) {
+            guest = UserAccountEntity(
+                id = guestId,
+                username = "Tamu Petualang",
+                email = "guest@rpgrealm.local",
+                provider = "GUEST",
+                isCurrentActive = true,
+                linkedProviders = "GUEST"
+            )
+            dao.insertOrUpdateUserAccount(guest)
+        } else {
+            dao.setActiveUserAccount(guestId)
+        }
+        initializeAccountDataIfNeeded(guest.id, guest.username)
+        guest
     }
 
     suspend fun linkProviderToCurrentAccount(provider: String): Result<String> = withContext(Dispatchers.IO) {
@@ -1094,44 +1174,11 @@ class GameRepository(private val dao: GameDao) {
         val target = dao.getUserAccountById(accountId) ?: return@withContext false
         dao.clearActiveUserAccounts()
         dao.setActiveUserAccount(target.id)
-
-        val profile = dao.getPlayerProfileSync()
-        if (profile != null) {
-            dao.insertOrUpdatePlayer(
-                profile.copy(
-                    accountId = target.id,
-                    name = target.username
-                )
-            )
-        }
+        initializeAccountDataIfNeeded(target.id, target.username)
         true
     }
 
     suspend fun logoutCurrentAccount() = withContext(Dispatchers.IO) {
         dao.clearActiveUserAccounts()
-        var guest = dao.getUserAccountById("guest_default")
-        if (guest == null) {
-            guest = UserAccountEntity(
-                id = "guest_default",
-                username = "Petualang Guest",
-                email = "guest@rpgrealm.local",
-                provider = "GUEST",
-                isCurrentActive = true,
-                linkedProviders = "GUEST"
-            )
-            dao.insertOrUpdateUserAccount(guest)
-        } else {
-            dao.setActiveUserAccount(guest.id)
-        }
-
-        val profile = dao.getPlayerProfileSync()
-        if (profile != null) {
-            dao.insertOrUpdatePlayer(
-                profile.copy(
-                    accountId = guest.id,
-                    name = guest.username
-                )
-            )
-        }
     }
 }

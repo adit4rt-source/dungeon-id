@@ -39,4 +39,11 @@ object SecurityUtils {
         if (password.length < 6) return "Password minimal 6 karakter!"
         return null
     }
+
+    fun validateDiscordTag(discordTag: String): String? {
+        val trimmed = discordTag.trim()
+        if (trimmed.isBlank()) return "Tag Discord tidak boleh kosong!"
+        if (trimmed.length < 2 || trimmed.length > 32) return "Panjang tag Discord antara 2-32 karakter!"
+        return null
+    }
 }
