@@ -3,9 +3,23 @@ package com.example.data.local.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+@Entity(tableName = "user_accounts")
+data class UserAccountEntity(
+    @PrimaryKey val id: String,
+    val username: String,
+    val email: String,
+    val provider: String, // "GOOGLE", "FACEBOOK", "DISCORD", "GUEST"
+    val avatarUrl: String? = null,
+    val isCurrentActive: Boolean = false,
+    val linkedProviders: String = provider,
+    val createdAtMillis: Long = System.currentTimeMillis(),
+    val lastLoginMillis: Long = System.currentTimeMillis()
+)
+
 @Entity(tableName = "player_profile")
 data class PlayerProfileEntity(
     @PrimaryKey val id: Int = 1,
+    val accountId: String = "guest_default",
     val name: String = "Petualang",
     val level: Int = 1,
     val exp: Int = 0,

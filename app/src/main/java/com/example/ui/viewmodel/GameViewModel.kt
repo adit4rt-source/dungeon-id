@@ -34,6 +34,8 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
 
+import com.example.data.local.entity.UserAccountEntity
+
 sealed class FishingState {
     object Idle : FishingState()
     object Casting : FishingState()
@@ -81,6 +83,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    val activeUserAccount: StateFlow<UserAccountEntity?> = repository.activeUserAccount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val allAccounts: StateFlow<List<UserAccountEntity>> = repository.allUserAccounts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val playerProfile: StateFlow<PlayerProfileEntity?> = repository.playerProfile
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -120,6 +128,65 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     fun showToast(msg: String) {
         viewModelScope.launch {
             _messageEvents.emit(msg)
+        }
+    }
+
+    // --- USER ACCOUNT ACTIONS ---
+    fun loginWithGoogle(customUsername: String? = null, customEmail: String? = null) {
+        viewModelScope.launch {
+            val username = customUsername ?: "Gamer Google"
+            val email = customEmail ?: "player.google@gmail.com"
+            val account = repository.loginWithProvider("GOOGLE", username, email)
+            showToast("🔴 Berhasil login dengan Google sebagai ${account.username}!")
+        }
+    }
+
+    fun loginWithFacebook(customUsername: String? = null, customEmail: String? = null) {
+        viewModelScope.launch {
+            val username = customUsername ?: "Gamer Facebook"
+            val email = customEmail ?: "player.fb@facebook.com"
+            val account = repository.loginWithProvider("FACEBOOK", username, email)
+            showToast("🔵 Berhasil login dengan Facebook sebagai ${account.username}!")
+        }
+    }
+
+    fun loginWithDiscord(customUsername: String? = null, customEmail: String? = null) {
+        viewModelScope.launch {
+            val username = customUsername ?: "Gamer Discord#1337"
+            val email = customEmail ?: "player.discord@discord.com"
+            val account = repository.loginWithProvider("DISCORD", username, email)
+            showToast("🟣 Berhasil login dengan Discord sebagai ${account.username}!")
+        }
+    }
+
+    fun loginAsGuest() {
+        viewModelScope.launch {
+            val account = repository.loginWithProvider("GUEST", "Petualang Guest", "guest@rpgrealm.local")
+            showToast("👤 Bermain sebagai Tamu (Guest Mode).")
+        }
+    }
+
+    fun linkProvider(provider: String) {
+        viewModelScope.launch {
+            val result = repository.linkProviderToCurrentAccount(provider)
+            result.onSuccess { msg -> showToast(msg) }
+                .onFailure { err -> showToast(err.message ?: "Gagal menghubungkan provider") }
+        }
+    }
+
+    fun switchAccount(accountId: String) {
+        viewModelScope.launch {
+            val success = repository.switchUserAccount(accountId)
+            if (success) {
+                showToast("Beralih ke akun terpilih!")
+            }
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            repository.logoutCurrentAccount()
+            showToast("Akun berhasil keluar (Logout). Kembali ke Guest.")
         }
     }
 

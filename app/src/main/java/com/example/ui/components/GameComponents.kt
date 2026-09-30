@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.PlayerProfileEntity
+import com.example.data.local.entity.UserAccountEntity
 import com.example.data.model.ItemRarity
 import com.example.ui.theme.PressStartFontFamily
 import com.example.ui.theme.Vt323FontFamily
@@ -42,6 +43,8 @@ import com.example.util.LocalSoundManager
 @Composable
 fun PlayerTopAppBar(
     profile: PlayerProfileEntity?,
+    userAccount: UserAccountEntity? = null,
+    onOpenAccountDialog: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     if (profile == null) return
@@ -100,14 +103,31 @@ fun PlayerTopAppBar(
                     }
                 }
 
-                // Currencies: Gold, Diamonds, Upgrade Stones & Sound Toggle
+                // Currencies: Gold, Diamonds, Upgrade Stones, Account & Sound Toggle
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     PixelCurrencyChip(icon = "🪙", value = "${profile.gold}", color = Color(0xFFFFD54F), testTag = "gold_badge")
                     PixelCurrencyChip(icon = "💎", value = "${profile.diamonds}", color = Color(0xFF4FC3F7), testTag = "diamond_badge")
                     PixelCurrencyChip(icon = "🪨", value = "${profile.upgradeStones}", color = Color(0xFFCE93D8), testTag = "stones_badge")
+
+                    PixelButton(
+                        onClick = {
+                            soundManager.playMenuClick()
+                            onOpenAccountDialog()
+                        },
+                        backgroundColor = getProviderColor(userAccount?.provider ?: "GUEST"),
+                        testTag = "open_account_dialog_button"
+                    ) {
+                        Text(
+                            text = "${getProviderEmoji(userAccount?.provider ?: "GUEST")} ${userAccount?.username?.take(6) ?: "AKUN"}",
+                            fontFamily = PressStartFontFamily,
+                            fontSize = 6.sp,
+                            color = Color.White
+                        )
+                    }
+
                     PixelButton(
                         onClick = {
                             isMuted = soundManager.toggleMute()

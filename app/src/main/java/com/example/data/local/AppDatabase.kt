@@ -11,8 +11,11 @@ import com.example.data.local.entity.PetEntity
 import com.example.data.local.entity.PlayerProfileEntity
 import com.example.data.local.entity.QuestEntity
 
+import com.example.data.local.entity.UserAccountEntity
+
 @Database(
     entities = [
+        UserAccountEntity::class,
         PlayerProfileEntity::class,
         FarmPlotEntity::class,
         PetEntity::class,
@@ -20,7 +23,7 @@ import com.example.data.local.entity.QuestEntity
         FishDexEntity::class,
         QuestEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

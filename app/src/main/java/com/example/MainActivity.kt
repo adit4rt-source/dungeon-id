@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.ui.components.AccountDialog
 import com.example.ui.components.PixelBottomNavigationBar
 import com.example.ui.components.PlayerTopAppBar
 import com.example.ui.components.RetroGold
@@ -86,8 +87,11 @@ fun MainGameApp(
 ) {
     val soundManager = LocalSoundManager.current
     var currentScreen by remember { mutableStateOf(GameScreen.HOME) }
+    var showAccountDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val player by viewModel.playerProfile.collectAsStateWithLifecycle()
+    val userAccount by viewModel.activeUserAccount.collectAsStateWithLifecycle()
+    val allAccounts by viewModel.allAccounts.collectAsStateWithLifecycle()
 
     BackHandler(enabled = currentScreen != GameScreen.HOME) {
         soundManager.playMenuClick()
@@ -124,7 +128,11 @@ fun MainGameApp(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            PlayerTopAppBar(profile = player)
+            PlayerTopAppBar(
+                profile = player,
+                userAccount = userAccount,
+                onOpenAccountDialog = { showAccountDialog = true }
+            )
         },
         bottomBar = {
             PixelBottomNavigationBar(
@@ -187,6 +195,40 @@ fun MainGameApp(
                         onNavigateBack = { currentScreen = GameScreen.HOME }
                     )
                 }
+            }
+
+            if (showAccountDialog) {
+                AccountDialog(
+                    currentAccount = userAccount,
+                    allAccounts = allAccounts,
+                    onDismiss = { showAccountDialog = false },
+                    onLoginGoogle = { username, email ->
+                        viewModel.loginWithGoogle(username, email)
+                        showAccountDialog = false
+                    },
+                    onLoginFacebook = { username, email ->
+                        viewModel.loginWithFacebook(username, email)
+                        showAccountDialog = false
+                    },
+                    onLoginDiscord = { username, email ->
+                        viewModel.loginWithDiscord(username, email)
+                        showAccountDialog = false
+                    },
+                    onLoginGuest = {
+                        viewModel.loginAsGuest()
+                        showAccountDialog = false
+                    },
+                    onLinkProvider = { provider ->
+                        viewModel.linkProvider(provider)
+                    },
+                    onSwitchAccount = { accountId ->
+                        viewModel.switchAccount(accountId)
+                    },
+                    onLogout = {
+                        viewModel.logout()
+                        showAccountDialog = false
+                    }
+                )
             }
         }
     }

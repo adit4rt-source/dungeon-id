@@ -11,10 +11,36 @@ import com.example.data.local.entity.InventoryItemEntity
 import com.example.data.local.entity.PetEntity
 import com.example.data.local.entity.PlayerProfileEntity
 import com.example.data.local.entity.QuestEntity
+import com.example.data.local.entity.UserAccountEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface GameDao {
+    // User Accounts
+    @Query("SELECT * FROM user_accounts WHERE isCurrentActive = 1 LIMIT 1")
+    fun getActiveUserAccount(): Flow<UserAccountEntity?>
+
+    @Query("SELECT * FROM user_accounts WHERE isCurrentActive = 1 LIMIT 1")
+    suspend fun getActiveUserAccountSync(): UserAccountEntity?
+
+    @Query("SELECT * FROM user_accounts ORDER BY lastLoginMillis DESC")
+    fun getAllUserAccounts(): Flow<List<UserAccountEntity>>
+
+    @Query("SELECT * FROM user_accounts WHERE id = :id LIMIT 1")
+    suspend fun getUserAccountById(id: String): UserAccountEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdateUserAccount(account: UserAccountEntity)
+
+    @Query("UPDATE user_accounts SET isCurrentActive = 0")
+    suspend fun clearActiveUserAccounts()
+
+    @Query("UPDATE user_accounts SET isCurrentActive = 1 WHERE id = :id")
+    suspend fun setActiveUserAccount(id: String)
+
+    @Query("DELETE FROM user_accounts WHERE id = :id")
+    suspend fun deleteUserAccount(id: String)
+
     // Player
     @Query("SELECT * FROM player_profile WHERE id = 1 LIMIT 1")
     fun getPlayerProfile(): Flow<PlayerProfileEntity?>

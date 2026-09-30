@@ -18,7 +18,12 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
 
+import com.example.data.local.entity.UserAccountEntity
+
 class GameRepository(private val dao: GameDao) {
+
+    val activeUserAccount: Flow<UserAccountEntity?> = dao.getActiveUserAccount()
+    val allUserAccounts: Flow<List<UserAccountEntity>> = dao.getAllUserAccounts()
 
     val playerProfile: Flow<PlayerProfileEntity?> = dao.getPlayerProfile()
     val allPlots: Flow<List<FarmPlotEntity>> = dao.getAllPlots()
@@ -30,10 +35,28 @@ class GameRepository(private val dao: GameDao) {
 
     suspend fun initializeGameIfNeeded() = withContext(Dispatchers.IO) {
         val currentProfile = dao.getPlayerProfileSync()
+        val currentAccount = dao.getActiveUserAccountSync()
+
+        if (currentAccount == null) {
+            val defaultGuest = UserAccountEntity(
+                id = "guest_default",
+                username = "Petualang Muda",
+                email = "guest@rpgrealm.local",
+                provider = "GUEST",
+                avatarUrl = null,
+                isCurrentActive = true,
+                linkedProviders = "GUEST",
+                createdAtMillis = System.currentTimeMillis(),
+                lastLoginMillis = System.currentTimeMillis()
+            )
+            dao.insertOrUpdateUserAccount(defaultGuest)
+        }
+
         if (currentProfile == null) {
             val starterProfile = PlayerProfileEntity(
                 id = 1,
-                name = "Petualang Muda",
+                accountId = currentAccount?.id ?: "guest_default",
+                name = currentAccount?.username ?: "Petualang Muda",
                 level = 1,
                 exp = 0,
                 maxExp = 100,
@@ -813,5 +836,107 @@ class GameRepository(private val dao: GameDao) {
 
         dao.updateQuest(target.copy(isClaimed = true))
         true
+    }
+
+    // --- USER ACCOUNT MANAGEMENT ---
+    suspend fun loginWithProvider(
+        provider: String,
+        username: String,
+        email: String,
+        avatarUrl: String? = null
+    ): UserAccountEntity = withContext(Dispatchers.IO) {
+        val accountId = "${provider.lowercase()}_${if (email.isNotBlank()) email.lowercase().replace("@", "_at_").replace(".", "_") else username.lowercase().replace(" ", "_")}"
+        dao.clearActiveUserAccounts()
+
+        val existing = dao.getUserAccountById(accountId)
+        val updatedLinkedProviders = if (existing != null) {
+            val list = existing.linkedProviders.split(",").filter { it.isNotBlank() }.toMutableList()
+            if (!list.contains(provider)) list.add(provider)
+            list.joinToString(",")
+        } else {
+            provider
+        }
+
+        val account = UserAccountEntity(
+            id = accountId,
+            username = username,
+            email = email,
+            provider = provider,
+            avatarUrl = avatarUrl,
+            isCurrentActive = true,
+            linkedProviders = updatedLinkedProviders,
+            createdAtMillis = existing?.createdAtMillis ?: System.currentTimeMillis(),
+            lastLoginMillis = System.currentTimeMillis()
+        )
+        dao.insertOrUpdateUserAccount(account)
+
+        val profile = dao.getPlayerProfileSync()
+        if (profile != null) {
+            dao.insertOrUpdatePlayer(
+                profile.copy(
+                    accountId = account.id,
+                    name = username
+                )
+            )
+        }
+        account
+    }
+
+    suspend fun linkProviderToCurrentAccount(provider: String): Result<String> = withContext(Dispatchers.IO) {
+        val active = dao.getActiveUserAccountSync() ?: return@withContext Result.failure(Exception("Tidak ada akun aktif"))
+        val currentLinked = active.linkedProviders.split(",").filter { it.isNotBlank() }
+        if (currentLinked.contains(provider)) {
+            return@withContext Result.failure(Exception("Akun ini sudah terhubung dengan $provider!"))
+        }
+
+        val newLinked = (currentLinked + provider).joinToString(",")
+        val updated = active.copy(linkedProviders = newLinked)
+        dao.insertOrUpdateUserAccount(updated)
+        Result.success("Berhasil menghubungkan akun dengan $provider!")
+    }
+
+    suspend fun switchUserAccount(accountId: String): Boolean = withContext(Dispatchers.IO) {
+        val target = dao.getUserAccountById(accountId) ?: return@withContext false
+        dao.clearActiveUserAccounts()
+        dao.setActiveUserAccount(target.id)
+
+        val profile = dao.getPlayerProfileSync()
+        if (profile != null) {
+            dao.insertOrUpdatePlayer(
+                profile.copy(
+                    accountId = target.id,
+                    name = target.username
+                )
+            )
+        }
+        true
+    }
+
+    suspend fun logoutCurrentAccount() = withContext(Dispatchers.IO) {
+        dao.clearActiveUserAccounts()
+        var guest = dao.getUserAccountById("guest_default")
+        if (guest == null) {
+            guest = UserAccountEntity(
+                id = "guest_default",
+                username = "Petualang Guest",
+                email = "guest@rpgrealm.local",
+                provider = "GUEST",
+                isCurrentActive = true,
+                linkedProviders = "GUEST"
+            )
+            dao.insertOrUpdateUserAccount(guest)
+        } else {
+            dao.setActiveUserAccount(guest.id)
+        }
+
+        val profile = dao.getPlayerProfileSync()
+        if (profile != null) {
+            dao.insertOrUpdatePlayer(
+                profile.copy(
+                    accountId = guest.id,
+                    name = guest.username
+                )
+            )
+        }
     }
 }
