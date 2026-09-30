@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Shield / Crest base -->
+    <path
+        android:fillColor="#FFB300"
+        android:pathData="M54,23 L76,33 C76,57 66,74 54,83 C42,74 32,57 32,33 Z" />
+    <path
+        android:fillColor="#FFCA28"
+        android:pathData="M54,26 L73,35 C73,56 64,71 54,79 C44,71 35,56 35,35 Z" />
+    <path
+        android:fillColor="#1A122B"
+        android:pathData="M54,29 L70,37 C70,54 62,68 54,75 C46,68 38,54 38,37 Z" />
+
+    <!-- RPG Sword in center -->
+    <path
+        android:fillColor="#ECEFF1"
+        android:pathData="M54,34 L56.5,40 L56.5,60 L54,64 L51.5,60 L51.5,40 Z" />
+    <!-- Sword Guard & Hilt -->
+    <path
+        android:fillColor="#FFD54F"
+        android:pathData="M48,60 L60,60 L58,62 L50,62 Z" />
+    <path
+        android:fillColor="#8D6E63"
+        android:pathData="M53,62 L55,62 L55,68 L53,68 Z" />
+    <path
+        android:fillColor="#FFD54F"
+        android:pathData="M52,68 L56,68 L55,70 L53,70 Z" />
+
+    <!-- Fish curve on left representing Fishing -->
+    <path
+        android:fillColor="#4FC3F7"
+        android:pathData="M44,45 C41,47 41,52 44,55 C46,57 49,57 49,54 C47,53 47,48 49,46 Z" />
+    <!-- Sprout leaf on right representing Farming -->
+    <path
+        android:fillColor="#81C784"
+        android:pathData="M59,45 C64,44 67,47 65,52 C63,55 58,54 59,51 C61,50 60,47 59,45 Z" />
+
+    <!-- Star sparkle at tip of sword -->
+    <path
+        android:fillColor="#FFF9C4"
+        android:pathData="M54,30 L55.5,33.5 L59,34 L55.5,35.5 L54,39 L52.5,35.5 L49,34 L52.5,33.5 Z" />
+</vector>

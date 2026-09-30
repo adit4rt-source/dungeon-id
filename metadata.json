@@ -1,0 +1,6 @@
+{
+  "name": "RPG Realm",
+  "description": "An indie RPG simulation featuring deep fishing mechanics, soil-tending farming, pet training and evolution, hunting dungeons, and village marketplace.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
