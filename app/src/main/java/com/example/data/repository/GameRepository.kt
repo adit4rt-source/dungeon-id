@@ -19,6 +19,7 @@ import kotlin.math.min
 import kotlin.random.Random
 
 import com.example.data.local.entity.UserAccountEntity
+import com.example.util.SecurityUtils
 
 class GameRepository(private val dao: GameDao) {
 
@@ -839,6 +840,200 @@ class GameRepository(private val dao: GameDao) {
     }
 
     // --- USER ACCOUNT MANAGEMENT ---
+    suspend fun registerAccount(
+        username: String,
+        email: String,
+        password: String,
+        discordId: String? = null
+    ): Result<UserAccountEntity> = withContext(Dispatchers.IO) {
+        val trimmedUsername = username.trim()
+        val trimmedEmail = email.trim().lowercase()
+        val trimmedDiscord = discordId?.trim()?.ifBlank { null }
+
+        val uErr = SecurityUtils.validateUsername(trimmedUsername)
+        if (uErr != null) return@withContext Result.failure(Exception(uErr))
+
+        val eErr = SecurityUtils.validateEmail(trimmedEmail)
+        if (eErr != null) return@withContext Result.failure(Exception(eErr))
+
+        val pErr = SecurityUtils.validatePassword(password)
+        if (pErr != null) return@withContext Result.failure(Exception(pErr))
+
+        val existingUser = dao.getUserAccountByUsername(trimmedUsername)
+        if (existingUser != null) {
+            return@withContext Result.failure(Exception("Username '$trimmedUsername' sudah terdaftar!"))
+        }
+
+        val existingEmail = dao.getUserAccountByEmail(trimmedEmail)
+        if (existingEmail != null) {
+            return@withContext Result.failure(Exception("Email '$trimmedEmail' sudah terdaftar!"))
+        }
+
+        val hash = SecurityUtils.hashPassword(password)
+        val safeUsername = trimmedUsername.lowercase().replace(" ", "_")
+        val accountId = "usr_${System.currentTimeMillis()}_$safeUsername"
+        val linkedList = mutableListOf("LOCAL", "EMAIL", "USERNAME")
+        if (trimmedDiscord != null) linkedList.add("DISCORD")
+
+        dao.clearActiveUserAccounts()
+        val newAccount = UserAccountEntity(
+            id = accountId,
+            username = trimmedUsername,
+            email = trimmedEmail,
+            passwordHash = hash,
+            discordId = trimmedDiscord,
+            provider = if (trimmedDiscord != null) "DISCORD" else "LOCAL",
+            avatarUrl = null,
+            isCurrentActive = true,
+            linkedProviders = linkedList.joinToString(","),
+            createdAtMillis = System.currentTimeMillis(),
+            lastLoginMillis = System.currentTimeMillis()
+        )
+        dao.insertOrUpdateUserAccount(newAccount)
+
+        val profile = dao.getPlayerProfileSync()
+        if (profile != null) {
+            dao.insertOrUpdatePlayer(
+                profile.copy(
+                    accountId = newAccount.id,
+                    name = trimmedUsername
+                )
+            )
+        }
+        Result.success(newAccount)
+    }
+
+    suspend fun loginWithUsernameOrEmail(
+        identifier: String,
+        password: String
+    ): Result<UserAccountEntity> = withContext(Dispatchers.IO) {
+        val trimmed = identifier.trim()
+        if (trimmed.isBlank()) {
+            return@withContext Result.failure(Exception("Username atau email tidak boleh kosong!"))
+        }
+        if (password.isBlank()) {
+            return@withContext Result.failure(Exception("Password tidak boleh kosong!"))
+        }
+
+        val account = dao.getUserAccountByUsernameOrEmail(trimmed)
+            ?: return@withContext Result.failure(Exception("Akun '$trimmed' tidak ditemukan! Silakan daftar terlebih dahulu."))
+
+        if (account.passwordHash == null) {
+            return@withContext Result.failure(Exception("Akun ini terdaftar lewat ${account.provider}. Silakan login lewat provider tersebut."))
+        }
+
+        if (!SecurityUtils.verifyPassword(password, account.passwordHash)) {
+            return@withContext Result.failure(Exception("Password salah! Periksa kembali kata sandi."))
+        }
+
+        dao.clearActiveUserAccounts()
+        val updated = account.copy(
+            isCurrentActive = true,
+            lastLoginMillis = System.currentTimeMillis()
+        )
+        dao.insertOrUpdateUserAccount(updated)
+
+        val profile = dao.getPlayerProfileSync()
+        if (profile != null) {
+            dao.insertOrUpdatePlayer(
+                profile.copy(
+                    accountId = updated.id,
+                    name = updated.username
+                )
+            )
+        }
+        Result.success(updated)
+    }
+
+    suspend fun loginWithDiscordAccount(
+        discordTag: String,
+        email: String? = null
+    ): Result<UserAccountEntity> = withContext(Dispatchers.IO) {
+        val trimmedTag = discordTag.trim()
+        if (trimmedTag.isBlank()) {
+            return@withContext Result.failure(Exception("Username atau Tag Discord tidak boleh kosong!"))
+        }
+
+        val existing = dao.getUserAccountByDiscord(trimmedTag)
+        if (existing != null) {
+            dao.clearActiveUserAccounts()
+            val currentLinked = existing.linkedProviders.split(",").filter { it.isNotBlank() }.toMutableList()
+            if (!currentLinked.contains("DISCORD")) currentLinked.add("DISCORD")
+
+            val updated = existing.copy(
+                discordId = trimmedTag,
+                isCurrentActive = true,
+                linkedProviders = currentLinked.joinToString(","),
+                lastLoginMillis = System.currentTimeMillis()
+            )
+            dao.insertOrUpdateUserAccount(updated)
+
+            val profile = dao.getPlayerProfileSync()
+            if (profile != null) {
+                dao.insertOrUpdatePlayer(
+                    profile.copy(
+                        accountId = updated.id,
+                        name = updated.username
+                    )
+                )
+            }
+            return@withContext Result.success(updated)
+        }
+
+        val safeTag = trimmedTag.lowercase().replace("#", "_").replace(" ", "_").replace("@", "_")
+        val accountId = "discord_$safeTag"
+        val userEmail = email?.trim()?.ifBlank { "$safeTag@discord.local" } ?: "$safeTag@discord.local"
+
+        dao.clearActiveUserAccounts()
+        val newDiscordAccount = UserAccountEntity(
+            id = accountId,
+            username = trimmedTag,
+            email = userEmail,
+            passwordHash = null,
+            discordId = trimmedTag,
+            provider = "DISCORD",
+            avatarUrl = null,
+            isCurrentActive = true,
+            linkedProviders = "DISCORD",
+            createdAtMillis = System.currentTimeMillis(),
+            lastLoginMillis = System.currentTimeMillis()
+        )
+        dao.insertOrUpdateUserAccount(newDiscordAccount)
+
+        val profile = dao.getPlayerProfileSync()
+        if (profile != null) {
+            dao.insertOrUpdatePlayer(
+                profile.copy(
+                    accountId = newDiscordAccount.id,
+                    name = newDiscordAccount.username
+                )
+            )
+        }
+        Result.success(newDiscordAccount)
+    }
+
+    suspend fun linkDiscordToCurrentAccount(discordTag: String): Result<String> = withContext(Dispatchers.IO) {
+        val trimmedTag = discordTag.trim()
+        if (trimmedTag.isBlank()) {
+            return@withContext Result.failure(Exception("Discord Tag tidak boleh kosong!"))
+        }
+
+        val active = dao.getActiveUserAccountSync()
+            ?: return@withContext Result.failure(Exception("Tidak ada akun aktif!"))
+
+        val currentLinked = active.linkedProviders.split(",").filter { it.isNotBlank() }.toMutableList()
+        if (!currentLinked.contains("DISCORD")) {
+            currentLinked.add("DISCORD")
+        }
+
+        val updated = active.copy(
+            discordId = trimmedTag,
+            linkedProviders = currentLinked.joinToString(",")
+        )
+        dao.insertOrUpdateUserAccount(updated)
+        Result.success("Berhasil menautkan Discord ($trimmedTag) ke akun ${active.username}!")
+    }
+
     suspend fun loginWithProvider(
         provider: String,
         username: String,

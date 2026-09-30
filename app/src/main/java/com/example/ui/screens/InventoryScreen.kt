@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -206,211 +210,339 @@ fun InventoryScreen(
             }
         }
 
-        // Search Bar & Sort Row
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 6.dp)
-        ) {
-            PixelFrame(
-                backgroundColor = Color(0xFF151022),
-                borderColor = Color(0xFF382B54),
-                contentPadding = 4.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Cari",
-                        tint = Color(0xFFB0BEC5),
-                        modifier = Modifier.size(16.dp).padding(start = 4.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = {
-                            Text("Cari umpan, benih, ore, ikan...", fontFamily = Vt323FontFamily, fontSize = 15.sp, color = Color.Gray)
-                        },
-                        textStyle = TextStyle(fontFamily = Vt323FontFamily, fontSize = 16.sp, color = Color.White),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent
-                        ),
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(Icons.Default.Close, contentDescription = "Hapus", tint = Color.Gray, modifier = Modifier.size(14.dp))
-                                }
-                            }
-                        },
-                        modifier = Modifier.weight(1f).height(44.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Category Tabs
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                items(InventoryCategoryFilter.values()) { cat ->
-                    val isSelected = selectedCategory == cat
-                    PixelButton(
-                        onClick = {
-                            soundManager.playTabSwitch()
-                            selectedCategory = cat
-                        },
-                        backgroundColor = if (isSelected) Color(0xFF7B1FA2) else Color(0xFF1B152B),
-                        testTag = "inv_tab_${cat.key}"
-                    ) {
-                        Text(
-                            text = "${cat.icon} ${cat.label}",
-                            fontFamily = PressStartFontFamily,
-                            fontSize = 6.sp,
-                            color = if (isSelected) Color.White else Color(0xFFB0BEC5)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Sort Selector Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("URUTKAN:", fontFamily = PressStartFontFamily, fontSize = 6.sp, color = Color(0xFFB0BEC5))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    items(InventorySortOrder.values()) { order ->
-                        val isSelected = selectedSortOrder == order
-                        PixelButton(
-                            onClick = { selectedSortOrder = order },
-                            backgroundColor = if (isSelected) Color(0xFFE65100) else Color(0xFF261D2E),
-                            testTag = "sort_${order.name}"
-                        ) {
-                            Text(
-                                text = order.label,
-                                fontFamily = PressStartFontFamily,
-                                fontSize = 5.sp,
-                                color = if (isSelected) Color.White else Color(0xFF90A4AE)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Main Inventory Content: Grid or List
         Box(
             modifier = Modifier
-                .weight(1f)
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp)
+                .weight(1f),
+            contentAlignment = Alignment.TopCenter
         ) {
-            if (filteredItems.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    PixelFrame(
-                        backgroundColor = Color(0xFF1B162C),
-                        borderColor = Color(0xFF4A3B69),
-                        contentPadding = 16.dp,
-                        modifier = Modifier.fillMaxWidth()
+            BoxWithConstraints(
+                modifier = Modifier
+                    .widthIn(max = 1100.dp)
+                    .fillMaxSize()
+            ) {
+                val isWide = maxWidth >= 720.dp
+
+                if (isWide) {
+                    // Split pane layout: Left side list/grid, Right side inspector
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .weight(1.3f)
+                                .fillMaxSize()
                         ) {
-                            Text("📦", fontSize = 36.sp)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "KATEGORI INI KOSONG",
-                                fontFamily = PressStartFontFamily,
-                                fontSize = 9.sp,
-                                color = RetroGold,
-                                textAlign = TextAlign.Center
+                            // Search Bar & Sort Controls
+                            InventoryFilterControls(
+                                searchQuery = searchQuery,
+                                onSearchChange = { searchQuery = it },
+                                selectedCategory = selectedCategory,
+                                onSelectCategory = {
+                                    soundManager.playTabSwitch()
+                                    selectedCategory = it
+                                },
+                                selectedSortOrder = selectedSortOrder,
+                                onSelectSortOrder = { selectedSortOrder = it }
                             )
+
                             Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = "Kumpulkan umpan di toko, benih di kebun, atau buru monster di dungeon!",
-                                fontFamily = Vt323FontFamily,
-                                fontSize = 15.sp,
-                                color = Color(0xFFB0BEC5),
-                                textAlign = TextAlign.Center
+
+                            // Grid or List
+                            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                                InventoryItemsView(
+                                    filteredItems = filteredItems,
+                                    isGridView = isGridView,
+                                    currentSelected = currentSelected,
+                                    onSelectItem = { item ->
+                                        soundManager.playMenuClick()
+                                        selectedItem = item
+                                    }
+                                )
+                            }
+                        }
+
+                        // Right Column: Item Inspector
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            if (currentSelected != null) {
+                                PixelItemDetailInspector(
+                                    item = currentSelected,
+                                    playerGold = player?.gold ?: 0,
+                                    onUse = {
+                                        soundManager.playMenuClick()
+                                        viewModel.useItem(currentSelected)
+                                    },
+                                    onSellOne = {
+                                        soundManager.playCoin()
+                                        viewModel.sellItem(currentSelected, 1)
+                                    },
+                                    onSellAll = {
+                                        soundManager.playCoin()
+                                        viewModel.sellItem(currentSelected, currentSelected.count)
+                                    }
+                                )
+                            } else {
+                                PixelFrame(
+                                    backgroundColor = Color(0xFF1B162C),
+                                    borderColor = Color(0xFF4A3B69),
+                                    contentPadding = 16.dp,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = "Pilih item untuk melihat detail dan opsi aksi.",
+                                        fontFamily = Vt323FontFamily,
+                                        fontSize = 16.sp,
+                                        color = Color(0xFFB0BEC5)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Mobile Portrait stacked layout
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        InventoryFilterControls(
+                            searchQuery = searchQuery,
+                            onSearchChange = { searchQuery = it },
+                            selectedCategory = selectedCategory,
+                            onSelectCategory = {
+                                soundManager.playTabSwitch()
+                                selectedCategory = it
+                            },
+                            selectedSortOrder = selectedSortOrder,
+                            onSelectSortOrder = { selectedSortOrder = it },
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp)
+                        ) {
+                            InventoryItemsView(
+                                filteredItems = filteredItems,
+                                isGridView = isGridView,
+                                currentSelected = currentSelected,
+                                onSelectItem = { item ->
+                                    soundManager.playMenuClick()
+                                    selectedItem = item
+                                }
+                            )
+                        }
+
+                        if (currentSelected != null) {
+                            PixelItemDetailInspector(
+                                item = currentSelected,
+                                playerGold = player?.gold ?: 0,
+                                onUse = {
+                                    soundManager.playMenuClick()
+                                    viewModel.useItem(currentSelected)
+                                },
+                                onSellOne = {
+                                    soundManager.playCoin()
+                                    viewModel.sellItem(currentSelected, 1)
+                                },
+                                onSellAll = {
+                                    soundManager.playCoin()
+                                    viewModel.sellItem(currentSelected, currentSelected.count)
+                                }
                             )
                         }
                     }
                 }
-            } else if (isGridView) {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(4),
-                    contentPadding = PaddingValues(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.fillMaxSize().testTag("inventory_grid_view")
-                ) {
-                    items(filteredItems) { item ->
-                        val isSelected = currentSelected?.id == item.id
-                        PixelInventoryGridSlot(
-                            item = item,
-                            isSelected = isSelected,
-                            onClick = {
-                                soundManager.playMenuClick()
-                                selectedItem = item
+            }
+        }
+    }
+}
+
+@Composable
+fun InventoryFilterControls(
+    searchQuery: String,
+    onSearchChange: (String) -> Unit,
+    selectedCategory: InventoryCategoryFilter,
+    onSelectCategory: (InventoryCategoryFilter) -> Unit,
+    selectedSortOrder: InventorySortOrder,
+    onSelectSortOrder: (InventorySortOrder) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        PixelFrame(
+            backgroundColor = Color(0xFF151022),
+            borderColor = Color(0xFF382B54),
+            contentPadding = 4.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Cari",
+                    tint = Color(0xFFB0BEC5),
+                    modifier = Modifier.size(16.dp).padding(start = 4.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = onSearchChange,
+                    placeholder = {
+                        Text("Cari umpan, benih, ore, ikan...", fontFamily = Vt323FontFamily, fontSize = 15.sp, color = Color.Gray)
+                    },
+                    textStyle = TextStyle(fontFamily = Vt323FontFamily, fontSize = 16.sp, color = Color.White),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent
+                    ),
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { onSearchChange("") }) {
+                                Icon(Icons.Default.Close, contentDescription = "Hapus", tint = Color.Gray, modifier = Modifier.size(14.dp))
                             }
-                        )
-                    }
+                        }
+                    },
+                    modifier = Modifier.weight(1f).height(44.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Category Tabs
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            items(InventoryCategoryFilter.values()) { cat ->
+                val isSelected = selectedCategory == cat
+                PixelButton(
+                    onClick = { onSelectCategory(cat) },
+                    backgroundColor = if (isSelected) Color(0xFF7B1FA2) else Color(0xFF1B152B),
+                    testTag = "inv_tab_${cat.key}"
+                ) {
+                    Text(
+                        text = "${cat.icon} ${cat.label}",
+                        fontFamily = PressStartFontFamily,
+                        fontSize = 6.sp,
+                        color = if (isSelected) Color.White else Color(0xFFB0BEC5)
+                    )
                 }
-            } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(bottom = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.fillMaxSize().testTag("inventory_list_view")
-                ) {
-                    items(filteredItems) { item ->
-                        val isSelected = currentSelected?.id == item.id
-                        PixelInventoryListItem(
-                            item = item,
-                            isSelected = isSelected,
-                            onClick = {
-                                soundManager.playMenuClick()
-                                selectedItem = item
-                            }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Sort Selector Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("URUTKAN:", fontFamily = PressStartFontFamily, fontSize = 6.sp, color = Color(0xFFB0BEC5))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                items(InventorySortOrder.values()) { order ->
+                    val isSelected = selectedSortOrder == order
+                    PixelButton(
+                        onClick = { onSelectSortOrder(order) },
+                        backgroundColor = if (isSelected) Color(0xFFE65100) else Color(0xFF261D2E),
+                        testTag = "sort_${order.name}"
+                    ) {
+                        Text(
+                            text = order.label,
+                            fontFamily = PressStartFontFamily,
+                            fontSize = 5.sp,
+                            color = if (isSelected) Color.White else Color(0xFF90A4AE)
                         )
                     }
                 }
             }
         }
+    }
+}
 
-        // Detailed Inspector Bottom Panel for Selected Item
-        if (currentSelected != null) {
-            PixelItemDetailInspector(
-                item = currentSelected,
-                playerGold = player?.gold ?: 0,
-                onUse = {
-                    soundManager.playMenuClick()
-                    viewModel.useItem(currentSelected)
-                },
-                onSellOne = {
-                    soundManager.playCoin()
-                    viewModel.sellItem(currentSelected, 1)
-                },
-                onSellAll = {
-                    soundManager.playCoin()
-                    viewModel.sellItem(currentSelected, currentSelected.count)
+@Composable
+fun InventoryItemsView(
+    filteredItems: List<InventoryItemEntity>,
+    isGridView: Boolean,
+    currentSelected: InventoryItemEntity?,
+    onSelectItem: (InventoryItemEntity) -> Unit
+) {
+    if (filteredItems.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            PixelFrame(
+                backgroundColor = Color(0xFF1B162C),
+                borderColor = Color(0xFF4A3B69),
+                contentPadding = 16.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("📦", fontSize = 36.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "KATEGORI INI KOSONG",
+                        fontFamily = PressStartFontFamily,
+                        fontSize = 9.sp,
+                        color = RetroGold,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Kumpulkan umpan di toko, benih di kebun, atau buru monster di dungeon!",
+                        fontFamily = Vt323FontFamily,
+                        fontSize = 15.sp,
+                        color = Color(0xFFB0BEC5),
+                        textAlign = TextAlign.Center
+                    )
                 }
-            )
+            }
+        }
+    } else if (isGridView) {
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = 64.dp),
+            contentPadding = PaddingValues(bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxSize().testTag("inventory_grid_view")
+        ) {
+            items(filteredItems) { item ->
+                val isSelected = currentSelected?.id == item.id
+                PixelInventoryGridSlot(
+                    item = item,
+                    isSelected = isSelected,
+                    onClick = { onSelectItem(item) }
+                )
+            }
+        }
+    } else {
+        LazyColumn(
+            contentPadding = PaddingValues(bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxSize().testTag("inventory_list_view")
+        ) {
+            items(filteredItems) { item ->
+                val isSelected = currentSelected?.id == item.id
+                PixelInventoryListItem(
+                    item = item,
+                    isSelected = isSelected,
+                    onClick = { onSelectItem(item) }
+                )
+            }
         }
     }
 }

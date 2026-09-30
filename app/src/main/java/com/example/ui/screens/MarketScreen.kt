@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -14,8 +15,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -64,97 +69,104 @@ fun MarketScreen(
 
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
-    Column(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFF0F0C1B))
-            .testTag("market_screen_root")
+            .testTag("market_screen_root"),
+        contentAlignment = Alignment.TopCenter
     ) {
-        // Pixel Header
-        Box(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFF0D0B14))
-                .padding(bottom = 2.dp)
-                .background(Color(0xFFE65100))
-                .padding(bottom = 2.dp)
-                .background(Color(0xFF2C1608))
-                .padding(horizontal = 8.dp, vertical = 6.dp)
+                .widthIn(max = 1100.dp)
+                .fillMaxSize()
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            // Pixel Header
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF0D0B14))
+                    .padding(bottom = 2.dp)
+                    .background(Color(0xFFE65100))
+                    .padding(bottom = 2.dp)
+                    .background(Color(0xFF2C1608))
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
             ) {
-                IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("market_back_btn")) {
-                    Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali", tint = Color.White)
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "PASAR & TEMPA [PIXEL]",
-                        fontFamily = PressStartFontFamily,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = RetroGold
-                    )
-                    Text(
-                        text = "Toko, jual panen, pandai besi & masak hidangan",
-                        fontFamily = Vt323FontFamily,
-                        fontSize = 14.sp,
-                        color = Color(0xFFFFCC80)
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("market_back_btn")) {
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali", tint = Color.White)
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "PASAR & TEMPA [PIXEL]",
+                            fontFamily = PressStartFontFamily,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = RetroGold
+                        )
+                        Text(
+                            text = "Toko, jual panen, pandai besi & masak hidangan",
+                            fontFamily = Vt323FontFamily,
+                            fontSize = 14.sp,
+                            color = Color(0xFFFFCC80)
+                        )
+                    }
                 }
             }
-        }
 
-        TabRow(
-            selectedTabIndex = selectedTabIndex,
-            containerColor = Color(0xFF23140C),
-            contentColor = RetroGold
-        ) {
-            Tab(selected = selectedTabIndex == 0, onClick = { soundManager.playTabSwitch(); selectedTabIndex = 0 }, text = { Text("🛒 BELI", fontFamily = PressStartFontFamily, fontSize = 7.sp) })
-            Tab(selected = selectedTabIndex == 1, onClick = { soundManager.playTabSwitch(); selectedTabIndex = 1 }, text = { Text("💰 JUAL", fontFamily = PressStartFontFamily, fontSize = 7.sp) })
-            Tab(selected = selectedTabIndex == 2, onClick = { soundManager.playTabSwitch(); selectedTabIndex = 2 }, text = { Text("🔨 TEMPA", fontFamily = PressStartFontFamily, fontSize = 7.sp) })
-            Tab(selected = selectedTabIndex == 3, onClick = { soundManager.playTabSwitch(); selectedTabIndex = 3 }, text = { Text("🍳 MASAK", fontFamily = PressStartFontFamily, fontSize = 7.sp) })
-        }
+            TabRow(
+                selectedTabIndex = selectedTabIndex,
+                containerColor = Color(0xFF23140C),
+                contentColor = RetroGold
+            ) {
+                Tab(selected = selectedTabIndex == 0, onClick = { soundManager.playTabSwitch(); selectedTabIndex = 0 }, text = { Text("🛒 BELI", fontFamily = PressStartFontFamily, fontSize = 7.sp) })
+                Tab(selected = selectedTabIndex == 1, onClick = { soundManager.playTabSwitch(); selectedTabIndex = 1 }, text = { Text("💰 JUAL", fontFamily = PressStartFontFamily, fontSize = 7.sp) })
+                Tab(selected = selectedTabIndex == 2, onClick = { soundManager.playTabSwitch(); selectedTabIndex = 2 }, text = { Text("🔨 TEMPA", fontFamily = PressStartFontFamily, fontSize = 7.sp) })
+                Tab(selected = selectedTabIndex == 3, onClick = { soundManager.playTabSwitch(); selectedTabIndex = 3 }, text = { Text("🍳 MASAK", fontFamily = PressStartFontFamily, fontSize = 7.sp) })
+            }
 
-        when (selectedTabIndex) {
-            0 -> PixelBuyShopView(
-                playerGold = player?.gold ?: 0,
-                onBuyItem = { id, name, type, icon, rarity, cost ->
-                    soundManager.playCoin()
-                    viewModel.buyItem(id, name, type, icon, rarity, cost)
-                }
-            )
-            1 -> PixelSellMarketView(
-                inventory = inventory,
-                onSellItem = { item ->
-                    soundManager.playCoin()
-                    viewModel.sellItem(item, 1)
-                }
-            )
-            2 -> PixelBlacksmithUpgradeView(
-                currentRodLevel = player?.fishingRodLevel ?: 1,
-                playerGold = player?.gold ?: 0,
-                playerStones = player?.upgradeStones ?: 0,
-                inventory = inventory,
-                onUpgradeRod = {
-                    soundManager.playVictory()
-                    viewModel.upgradeFishingRod()
-                },
-                onCraftRecipe = { recipeKey ->
-                    soundManager.playVictory()
-                    viewModel.craftBlacksmith(recipeKey)
-                }
-            )
-            3 -> PixelCookingKitchenView(
-                recipes = GameDatabaseRegistry.COOKING_RECIPES,
-                inventory = inventory,
-                onCook = { recipe ->
-                    soundManager.playVictory()
-                    viewModel.cookRecipe(recipe)
-                }
-            )
+            when (selectedTabIndex) {
+                0 -> PixelBuyShopView(
+                    playerGold = player?.gold ?: 0,
+                    onBuyItem = { id, name, type, icon, rarity, cost ->
+                        soundManager.playCoin()
+                        viewModel.buyItem(id, name, type, icon, rarity, cost)
+                    }
+                )
+                1 -> PixelSellMarketView(
+                    inventory = inventory,
+                    onSellItem = { item ->
+                        soundManager.playCoin()
+                        viewModel.sellItem(item, 1)
+                    }
+                )
+                2 -> PixelBlacksmithUpgradeView(
+                    currentRodLevel = player?.fishingRodLevel ?: 1,
+                    playerGold = player?.gold ?: 0,
+                    playerStones = player?.upgradeStones ?: 0,
+                    inventory = inventory,
+                    onUpgradeRod = {
+                        soundManager.playVictory()
+                        viewModel.upgradeFishingRod()
+                    },
+                    onCraftRecipe = { recipeKey ->
+                        soundManager.playVictory()
+                        viewModel.craftBlacksmith(recipeKey)
+                    }
+                )
+                3 -> PixelCookingKitchenView(
+                    recipes = GameDatabaseRegistry.COOKING_RECIPES,
+                    inventory = inventory,
+                    onCook = { recipe ->
+                        soundManager.playVictory()
+                        viewModel.cookRecipe(recipe)
+                    }
+                )
+            }
         }
     }
 }
@@ -175,8 +187,13 @@ fun PixelBuyShopView(
         "CONSUMABLE" to "🧪 POTION/PETI"
     )
 
-    LazyColumn(modifier = Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        item {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 280.dp),
+        modifier = Modifier.fillMaxSize().padding(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(categories) { (key, label) ->
                     val isSelected = selectedCategory == key
@@ -193,7 +210,7 @@ fun PixelBuyShopView(
 
         // 1. Seeds & Crops (Category: ALL or FARM)
         if (selectedCategory == "ALL" || selectedCategory == "FARM") {
-            item {
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text("BENIH & BIBIT PERTANIAN:", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = RetroGold)
             }
@@ -213,7 +230,7 @@ fun PixelBuyShopView(
 
         // 2. Baits & Fishing (Category: ALL or FISH)
         if (selectedCategory == "ALL" || selectedCategory == "FISH") {
-            item {
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text("UMPAN & PERALATAN MANCING:", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = RetroGold)
             }
@@ -245,7 +262,7 @@ fun PixelBuyShopView(
         }
 
         if (filteredCatalog.isNotEmpty()) {
-            item {
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 Spacer(modifier = Modifier.height(4.dp))
                 val catTitle = when (selectedCategory) {
                     "FARM" -> "PERLENGKAPAN & PUPUK TANI:"
@@ -316,15 +333,20 @@ fun PixelSellMarketView(
 ) {
     val sellableItems = inventory.filter { it.count > 0 && it.sellPrice > 0 }
 
-    LazyColumn(modifier = Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        item {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 280.dp),
+        modifier = Modifier.fillMaxSize().padding(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
             PixelFrame(backgroundColor = Color(0xFF2A1C12), borderColor = RetroGold, contentPadding = 8.dp, modifier = Modifier.fillMaxWidth()) {
                 Text("Tengkulak desa membeli hasil panen, ikan tangkapan, bijih tempa, dan drop monster!", fontFamily = Vt323FontFamily, fontSize = 15.sp, color = RetroGold)
             }
         }
 
         if (sellableItems.isEmpty()) {
-            item {
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 Box(modifier = Modifier.fillMaxWidth().height(140.dp), contentAlignment = Alignment.Center) {
                     Text("Tas kosong! Belum ada barang untuk dijual.", fontFamily = Vt323FontFamily, fontSize = 16.sp, color = Color.Gray)
                 }
@@ -365,8 +387,13 @@ fun PixelBlacksmithUpgradeView(
     val stoneCount = inventory.find { it.id == "item_upgrade_stone" }?.count ?: playerStones
     val scaleCount = inventory.find { it.id == "item_dragon_scale" }?.count ?: 0
 
-    LazyColumn(modifier = Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 300.dp),
+        modifier = Modifier.fillMaxSize().padding(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
             PixelFrame(backgroundColor = Color(0xFF1E1724), borderColor = RetroGold, modifier = Modifier.fillMaxWidth()) {
                 Column {
                     Text("BENGKEL PANDAI BESI", fontFamily = PressStartFontFamily, fontSize = 10.sp, color = RetroGold)
@@ -396,7 +423,7 @@ fun PixelBlacksmithUpgradeView(
             }
         }
 
-        item {
+        item(span = { GridItemSpan(maxLineSpan) }) {
             Spacer(modifier = Modifier.height(4.dp))
             Text("PELEBURAN & PENEMPAAN MATERIAL:", fontFamily = PressStartFontFamily, fontSize = 9.sp, color = RetroGold)
         }
@@ -475,8 +502,13 @@ fun PixelCookingKitchenView(
     inventory: List<InventoryItemEntity>,
     onCook: (CookingRecipe) -> Unit
 ) {
-    LazyColumn(modifier = Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item {
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 300.dp),
+        modifier = Modifier.fillMaxSize().padding(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
             PixelFrame(backgroundColor = Color(0xFF281510), borderColor = Color(0xFFD84315), contentPadding = 8.dp, modifier = Modifier.fillMaxWidth()) {
                 Text("DAPUR RESEP: Masak ikan + hasil kebun menjadi hidangan pemulih!", fontFamily = Vt323FontFamily, fontSize = 15.sp, color = Color(0xFFFFCCBC))
             }

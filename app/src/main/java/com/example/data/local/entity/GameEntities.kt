@@ -8,7 +8,9 @@ data class UserAccountEntity(
     @PrimaryKey val id: String,
     val username: String,
     val email: String,
-    val provider: String, // "GOOGLE", "FACEBOOK", "DISCORD", "GUEST"
+    val passwordHash: String? = null,
+    val discordId: String? = null,
+    val provider: String, // "LOCAL", "DISCORD", "EMAIL", "USERNAME", "GOOGLE", "FACEBOOK", "GUEST"
     val avatarUrl: String? = null,
     val isCurrentActive: Boolean = false,
     val linkedProviders: String = provider,

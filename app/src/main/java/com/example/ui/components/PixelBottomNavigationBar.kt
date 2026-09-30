@@ -12,6 +12,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -262,23 +264,29 @@ fun PixelBottomNavigationBar(
             .background(Color(0xFF3B2D54), RectangleShape)
             .padding(top = 2.dp)
             .background(Color(0xFF140F22), RectangleShape)
-            .testTag("pixel_bottom_navigation_bar")
+            .testTag("pixel_bottom_navigation_bar"),
+        contentAlignment = Alignment.Center
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp, horizontal = 4.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            navItems.forEach { item ->
-                val isSelected = currentScreen == item.screen
-                PixelNavTabButton(
-                    item = item,
-                    isSelected = isSelected,
-                    onClick = { onSelectScreen(item.screen) },
-                    modifier = Modifier.weight(1f)
-                )
+        BoxWithConstraints(modifier = Modifier.widthIn(max = 680.dp).fillMaxWidth()) {
+            val isCompact = maxWidth < 360.dp
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp, horizontal = if (isCompact) 2.dp else 6.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                navItems.forEach { item ->
+                    val isSelected = currentScreen == item.screen
+                    PixelNavTabButton(
+                        item = item,
+                        isSelected = isSelected,
+                        isCompact = isCompact,
+                        onClick = { onSelectScreen(item.screen) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
     }
@@ -288,6 +296,7 @@ fun PixelBottomNavigationBar(
 private fun PixelNavTabButton(
     item: PixelNavItem,
     isSelected: Boolean,
+    isCompact: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -297,8 +306,8 @@ private fun PixelNavTabButton(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
         modifier = modifier
-            .defaultMinSize(minWidth = 54.dp, minHeight = 52.dp)
-            .padding(horizontal = 2.dp, vertical = 2.dp)
+            .defaultMinSize(minWidth = if (isCompact) 44.dp else 52.dp, minHeight = if (isCompact) 44.dp else 50.dp)
+            .padding(horizontal = 1.dp, vertical = 2.dp)
             .background(
                 if (isSelected) Color(0xFF281C3F) else Color.Transparent,
                 shape = RoundedCornerShape(4.dp)
@@ -312,7 +321,7 @@ private fun PixelNavTabButton(
                 indication = ripple(color = Color(0xFFFFD54F)),
                 onClick = onClick
             )
-            .padding(vertical = 4.dp)
+            .padding(vertical = if (isCompact) 2.dp else 4.dp)
             .testTag(item.testTag)
             .then(
                 if (item.screen == GameScreen.ADVENTURE) Modifier.testTag("nav_tab_adventure") else Modifier
@@ -322,16 +331,16 @@ private fun PixelNavTabButton(
         PixelNavIcon(
             iconType = item.iconType,
             isSelected = isSelected,
-            size = 24.dp
+            size = if (isCompact) 20.dp else 24.dp
         )
 
-        Spacer(modifier = Modifier.height(3.dp))
+        Spacer(modifier = Modifier.height(2.dp))
 
         // Label
         Text(
             text = item.label,
             fontFamily = PressStartFontFamily,
-            fontSize = 6.sp,
+            fontSize = if (isCompact) 5.5.sp else 6.5.sp,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
             color = if (isSelected) Color(0xFFFFD54F) else Color(0xFF8A9BA8)
         )
@@ -341,7 +350,7 @@ private fun PixelNavTabButton(
         // Pixel active dot indicator
         Box(
             modifier = Modifier
-                .size(4.dp)
+                .size(if (isCompact) 3.dp else 4.dp)
                 .background(
                     if (isSelected) Color(0xFFFFD54F) else Color.Transparent,
                     shape = RectangleShape

@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -79,97 +81,157 @@ fun PetScreen(
 
     val currentSelectedPet = pets.find { it.id == selectedPetId } ?: equippedPet ?: pets.firstOrNull()
 
-    Column(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFF0F0C1B))
-            .testTag("pet_screen_root")
+            .testTag("pet_screen_root"),
+        contentAlignment = Alignment.TopCenter
     ) {
-        // Pixel Header
-        Box(
+        val isWide = maxWidth >= 720.dp
+
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFF0D0B14))
-                .padding(bottom = 2.dp)
-                .background(Color(0xFF4A148C))
-                .padding(bottom = 2.dp)
-                .background(Color(0xFF1E1430))
-                .padding(horizontal = 8.dp, vertical = 6.dp)
+                .widthIn(max = 1100.dp)
+                .fillMaxSize()
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            // Pixel Header
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF0D0B14))
+                    .padding(bottom = 2.dp)
+                    .background(Color(0xFF4A148C))
+                    .padding(bottom = 2.dp)
+                    .background(Color(0xFF1E1430))
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
             ) {
-                IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("pet_back_btn")) {
-                    Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali", tint = Color.White)
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "SUAKA PET [PIXEL]",
-                        fontFamily = PressStartFontFamily,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = RetroGold
-                    )
-                    Text(
-                        text = "Latih, beri makan & evolusikan sahabat pixelmu",
-                        fontFamily = Vt323FontFamily,
-                        fontSize = 14.sp,
-                        color = Color(0xFFCE93D8)
-                    )
-                }
-                PixelButton(
-                    onClick = { showAdoptDialog = true },
-                    backgroundColor = Color(0xFF6A1B9A),
-                    testTag = "adopt_pet_btn"
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("+ ADOPSI", fontFamily = PressStartFontFamily, fontSize = 7.sp, color = Color.White)
+                    IconButton(onClick = onNavigateBack, modifier = Modifier.testTag("pet_back_btn")) {
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali", tint = Color.White)
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "SUAKA PET [PIXEL]",
+                            fontFamily = PressStartFontFamily,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = RetroGold
+                        )
+                        Text(
+                            text = "Latih, beri makan & evolusikan sahabat pixelmu",
+                            fontFamily = Vt323FontFamily,
+                            fontSize = 14.sp,
+                            color = Color(0xFFCE93D8)
+                        )
+                    }
+                    PixelButton(
+                        onClick = { showAdoptDialog = true },
+                        backgroundColor = Color(0xFF6A1B9A),
+                        testTag = "adopt_pet_btn"
+                    ) {
+                        Text("+ ADOPSI", fontFamily = PressStartFontFamily, fontSize = 7.sp, color = Color.White)
+                    }
                 }
             }
-        }
 
-        TabRow(
-            selectedTabIndex = selectedTabIndex,
-            containerColor = Color(0xFF1B152A),
-            contentColor = RetroGold
-        ) {
-            Tab(
-                selected = selectedTabIndex == 0,
-                onClick = { selectedTabIndex = 0 },
-                text = { Text("🐾 PET AKTIF", fontFamily = PressStartFontFamily, fontSize = 8.sp) }
-            )
-            Tab(
-                selected = selectedTabIndex == 1,
-                onClick = { selectedTabIndex = 1 },
-                text = { Text("📋 ROSTER (${pets.size})", fontFamily = PressStartFontFamily, fontSize = 8.sp) }
-            )
-        }
+            if (isWide) {
+                // Split-pane layout on wide screens
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Left: Active Pet Detail
+                    Box(modifier = Modifier.weight(1.2f).fillMaxSize()) {
+                        if (currentSelectedPet != null) {
+                            ActivePetPixelDetailView(
+                                pet = currentSelectedPet,
+                                playerStones = player?.upgradeStones ?: 0,
+                                onFeedClick = { showFeedDialog = true },
+                                onTrainClick = { viewModel.trainPet(currentSelectedPet.id) },
+                                onEvolveClick = { viewModel.evolvePet(currentSelectedPet.id) },
+                                onEquipClick = { viewModel.equipPet(currentSelectedPet.id) },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text("Belum ada pet peliharaan.", fontFamily = Vt323FontFamily, fontSize = 18.sp, color = Color.Gray)
+                            }
+                        }
+                    }
 
-        if (selectedTabIndex == 0) {
-            if (currentSelectedPet != null) {
-                ActivePetPixelDetailView(
-                    pet = currentSelectedPet,
-                    playerStones = player?.upgradeStones ?: 0,
-                    onFeedClick = { showFeedDialog = true },
-                    onTrainClick = { viewModel.trainPet(currentSelectedPet.id) },
-                    onEvolveClick = { viewModel.evolvePet(currentSelectedPet.id) },
-                    onEquipClick = { viewModel.equipPet(currentSelectedPet.id) }
-                )
+                    // Right: Pet Roster
+                    Box(modifier = Modifier.weight(1f).fillMaxSize()) {
+                        Column {
+                            Text(
+                                text = "DAFTAR ROSTER PET (${pets.size}):",
+                                fontFamily = PressStartFontFamily,
+                                fontSize = 8.sp,
+                                color = RetroGold,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            PetRosterPixelListView(
+                                pets = pets,
+                                selectedPetId = selectedPetId,
+                                onSelectPet = { id ->
+                                    selectedPetId = id
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                }
             } else {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Belum ada pet peliharaan.", fontFamily = Vt323FontFamily, fontSize = 18.sp, color = Color.Gray)
+                // Phone single pane with tabs
+                TabRow(
+                    selectedTabIndex = selectedTabIndex,
+                    containerColor = Color(0xFF1B152A),
+                    contentColor = RetroGold
+                ) {
+                    Tab(
+                        selected = selectedTabIndex == 0,
+                        onClick = { selectedTabIndex = 0 },
+                        text = { Text("🐾 PET AKTIF", fontFamily = PressStartFontFamily, fontSize = 8.sp) }
+                    )
+                    Tab(
+                        selected = selectedTabIndex == 1,
+                        onClick = { selectedTabIndex = 1 },
+                        text = { Text("📋 ROSTER (${pets.size})", fontFamily = PressStartFontFamily, fontSize = 8.sp) }
+                    )
+                }
+
+                if (selectedTabIndex == 0) {
+                    if (currentSelectedPet != null) {
+                        ActivePetPixelDetailView(
+                            pet = currentSelectedPet,
+                            playerStones = player?.upgradeStones ?: 0,
+                            onFeedClick = { showFeedDialog = true },
+                            onTrainClick = { viewModel.trainPet(currentSelectedPet.id) },
+                            onEvolveClick = { viewModel.evolvePet(currentSelectedPet.id) },
+                            onEquipClick = { viewModel.equipPet(currentSelectedPet.id) }
+                        )
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Belum ada pet peliharaan.", fontFamily = Vt323FontFamily, fontSize = 18.sp, color = Color.Gray)
+                        }
+                    }
+                } else {
+                    PetRosterPixelListView(
+                        pets = pets,
+                        selectedPetId = selectedPetId,
+                        onSelectPet = { id ->
+                            selectedPetId = id
+                            selectedTabIndex = 0
+                        }
+                    )
                 }
             }
-        } else {
-            PetRosterPixelListView(
-                pets = pets,
-                selectedPetId = selectedPetId,
-                onSelectPet = { id ->
-                    selectedPetId = id
-                    selectedTabIndex = 0
-                }
-            )
         }
     }
 
@@ -207,7 +269,8 @@ fun ActivePetPixelDetailView(
     onFeedClick: () -> Unit,
     onTrainClick: () -> Unit,
     onEvolveClick: () -> Unit,
-    onEquipClick: () -> Unit
+    onEquipClick: () -> Unit,
+    modifier: Modifier = Modifier.fillMaxSize().padding(14.dp)
 ) {
     val species = GameDatabaseRegistry.PET_SPECIES.find { it.id == pet.speciesId }
 
@@ -224,9 +287,7 @@ fun ActivePetPixelDetailView(
     val requiredStones = if (pet.evolutionStage == 1) 2 else 5
 
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(14.dp),
+        modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Pixel Pet Showcase Card
@@ -430,12 +491,11 @@ fun ActivePetPixelDetailView(
 fun PetRosterPixelListView(
     pets: List<PetEntity>,
     selectedPetId: Int,
-    onSelectPet: (Int) -> Unit
+    onSelectPet: (Int) -> Unit,
+    modifier: Modifier = Modifier.fillMaxSize().padding(14.dp)
 ) {
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(14.dp),
+        modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(pets) { pet ->
@@ -497,7 +557,10 @@ fun PixelFeedPetDialog(
         PixelFrame(
             backgroundColor = Color(0xFF191428),
             borderColor = Color(0xFFFF9800),
-            modifier = Modifier.fillMaxWidth().testTag("feed_pet_dialog")
+            modifier = Modifier
+                .widthIn(max = 480.dp)
+                .fillMaxWidth()
+                .testTag("feed_pet_dialog")
         ) {
             Column {
                 Row(
@@ -562,7 +625,10 @@ fun PixelAdoptPetDialog(
         PixelFrame(
             backgroundColor = Color(0xFF191428),
             borderColor = RetroGold,
-            modifier = Modifier.fillMaxWidth().testTag("adopt_pet_dialog")
+            modifier = Modifier
+                .widthIn(max = 480.dp)
+                .fillMaxWidth()
+                .testTag("adopt_pet_dialog")
         ) {
             Column {
                 Row(

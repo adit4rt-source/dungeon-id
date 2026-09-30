@@ -29,6 +29,18 @@ interface GameDao {
     @Query("SELECT * FROM user_accounts WHERE id = :id LIMIT 1")
     suspend fun getUserAccountById(id: String): UserAccountEntity?
 
+    @Query("SELECT * FROM user_accounts WHERE LOWER(username) = LOWER(:username) LIMIT 1")
+    suspend fun getUserAccountByUsername(username: String): UserAccountEntity?
+
+    @Query("SELECT * FROM user_accounts WHERE LOWER(email) = LOWER(:email) LIMIT 1")
+    suspend fun getUserAccountByEmail(email: String): UserAccountEntity?
+
+    @Query("SELECT * FROM user_accounts WHERE LOWER(username) = LOWER(:identifier) OR LOWER(email) = LOWER(:identifier) LIMIT 1")
+    suspend fun getUserAccountByUsernameOrEmail(identifier: String): UserAccountEntity?
+
+    @Query("SELECT * FROM user_accounts WHERE LOWER(discordId) = LOWER(:discord) OR (provider = 'DISCORD' AND (LOWER(username) = LOWER(:discord) OR LOWER(email) = LOWER(:discord))) LIMIT 1")
+    suspend fun getUserAccountByDiscord(discord: String): UserAccountEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateUserAccount(account: UserAccountEntity)
 

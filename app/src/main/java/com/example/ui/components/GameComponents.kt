@@ -40,6 +40,9 @@ import com.example.ui.theme.PressStartFontFamily
 import com.example.ui.theme.Vt323FontFamily
 import com.example.util.LocalSoundManager
 
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.widthIn
+
 @Composable
 fun PlayerTopAppBar(
     profile: PlayerProfileEntity?,
@@ -60,88 +63,168 @@ fun PlayerTopAppBar(
             .padding(bottom = 2.dp)
             .background(Color(0xFF191428), RectangleShape)
             .padding(horizontal = 12.dp, vertical = 8.dp)
-            .testTag("player_header_bar")
+            .testTag("player_header_bar"),
+        contentAlignment = Alignment.Center
     ) {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Player Avatar & Level
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    PixelSprite(
-                        spriteKey = "pet_wolf",
-                        size = 32.dp,
-                        animated = true
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
+        BoxWithConstraints(modifier = Modifier.widthIn(max = 960.dp).fillMaxWidth()) {
+            val isCompact = maxWidth < 480.dp
+
+            Column {
+                if (isCompact) {
+                    // Row 1: Profile identity & Quick Action buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = profile.name,
-                                fontFamily = PressStartFontFamily,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFFFD54F)
+                            PixelSprite(
+                                spriteKey = "pet_wolf",
+                                size = 28.dp,
+                                animated = true
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            PixelBadge(
-                                text = "Lv.${profile.level}",
-                                backgroundColor = Color(0xFF6A1B9A),
-                                textColor = Color(0xFFE1BEE7)
-                            )
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = profile.name.take(12),
+                                        fontFamily = PressStartFontFamily,
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFFFD54F)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    PixelBadge(
+                                        text = "Lv.${profile.level}",
+                                        backgroundColor = Color(0xFF6A1B9A),
+                                        textColor = Color(0xFFE1BEE7)
+                                    )
+                                }
+                                Text(
+                                    text = "EXP ${profile.exp}/${profile.maxExp}",
+                                    fontFamily = Vt323FontFamily,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFFB0BEC5)
+                                )
+                            }
                         }
-                        Spacer(modifier = Modifier.height(2.dp))
-                        // EXP progress text
-                        Text(
-                            text = "EXP ${profile.exp}/${profile.maxExp}",
-                            fontFamily = Vt323FontFamily,
-                            fontSize = 13.sp,
-                            color = Color(0xFFB0BEC5)
-                        )
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            PixelButton(
+                                onClick = {
+                                    soundManager.playMenuClick()
+                                    onOpenAccountDialog()
+                                },
+                                backgroundColor = getProviderColor(userAccount?.provider ?: "GUEST"),
+                                testTag = "open_account_dialog_button"
+                            ) {
+                                Text(
+                                    text = "${getProviderEmoji(userAccount?.provider ?: "GUEST")} ${userAccount?.username?.take(5) ?: "AKUN"}",
+                                    fontFamily = PressStartFontFamily,
+                                    fontSize = 6.sp,
+                                    color = Color.White
+                                )
+                            }
+
+                            PixelButton(
+                                onClick = { isMuted = soundManager.toggleMute() },
+                                backgroundColor = if (isMuted) Color(0xFFB71C1C) else Color(0xFF281C3F),
+                                testTag = "sound_mute_toggle"
+                            ) {
+                                Text(text = if (isMuted) "🔇" else "🔊", fontSize = 8.sp)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Row 2: Currencies
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        PixelCurrencyChip(icon = "🪙", value = "${profile.gold}", color = Color(0xFFFFD54F), testTag = "gold_badge")
+                        PixelCurrencyChip(icon = "💎", value = "${profile.diamonds}", color = Color(0xFF4FC3F7), testTag = "diamond_badge")
+                        PixelCurrencyChip(icon = "🪨", value = "${profile.upgradeStones}", color = Color(0xFFCE93D8), testTag = "stones_badge")
+                    }
+                } else {
+                    // Wide / Tablet row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            PixelSprite(
+                                spriteKey = "pet_wolf",
+                                size = 32.dp,
+                                animated = true
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = profile.name,
+                                        fontFamily = PressStartFontFamily,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFFFD54F)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    PixelBadge(
+                                        text = "Lv.${profile.level}",
+                                        backgroundColor = Color(0xFF6A1B9A),
+                                        textColor = Color(0xFFE1BEE7)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "EXP ${profile.exp}/${profile.maxExp}",
+                                    fontFamily = Vt323FontFamily,
+                                    fontSize = 13.sp,
+                                    color = Color(0xFFB0BEC5)
+                                )
+                            }
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            PixelCurrencyChip(icon = "🪙", value = "${profile.gold}", color = Color(0xFFFFD54F), testTag = "gold_badge")
+                            PixelCurrencyChip(icon = "💎", value = "${profile.diamonds}", color = Color(0xFF4FC3F7), testTag = "diamond_badge")
+                            PixelCurrencyChip(icon = "🪨", value = "${profile.upgradeStones}", color = Color(0xFFCE93D8), testTag = "stones_badge")
+
+                            PixelButton(
+                                onClick = {
+                                    soundManager.playMenuClick()
+                                    onOpenAccountDialog()
+                                },
+                                backgroundColor = getProviderColor(userAccount?.provider ?: "GUEST"),
+                                testTag = "open_account_dialog_button"
+                            ) {
+                                Text(
+                                    text = "${getProviderEmoji(userAccount?.provider ?: "GUEST")} ${userAccount?.username?.take(8) ?: "AKUN"}",
+                                    fontFamily = PressStartFontFamily,
+                                    fontSize = 7.sp,
+                                    color = Color.White
+                                )
+                            }
+
+                            PixelButton(
+                                onClick = { isMuted = soundManager.toggleMute() },
+                                backgroundColor = if (isMuted) Color(0xFFB71C1C) else Color(0xFF281C3F),
+                                testTag = "sound_mute_toggle"
+                            ) {
+                                Text(text = if (isMuted) "🔇" else "🔊", fontSize = 9.sp)
+                            }
+                        }
                     }
                 }
-
-                // Currencies: Gold, Diamonds, Upgrade Stones, Account & Sound Toggle
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    PixelCurrencyChip(icon = "🪙", value = "${profile.gold}", color = Color(0xFFFFD54F), testTag = "gold_badge")
-                    PixelCurrencyChip(icon = "💎", value = "${profile.diamonds}", color = Color(0xFF4FC3F7), testTag = "diamond_badge")
-                    PixelCurrencyChip(icon = "🪨", value = "${profile.upgradeStones}", color = Color(0xFFCE93D8), testTag = "stones_badge")
-
-                    PixelButton(
-                        onClick = {
-                            soundManager.playMenuClick()
-                            onOpenAccountDialog()
-                        },
-                        backgroundColor = getProviderColor(userAccount?.provider ?: "GUEST"),
-                        testTag = "open_account_dialog_button"
-                    ) {
-                        Text(
-                            text = "${getProviderEmoji(userAccount?.provider ?: "GUEST")} ${userAccount?.username?.take(6) ?: "AKUN"}",
-                            fontFamily = PressStartFontFamily,
-                            fontSize = 6.sp,
-                            color = Color.White
-                        )
-                    }
-
-                    PixelButton(
-                        onClick = {
-                            isMuted = soundManager.toggleMute()
-                        },
-                        backgroundColor = if (isMuted) Color(0xFFB71C1C) else Color(0xFF281C3F),
-                        testTag = "sound_mute_toggle"
-                    ) {
-                        Text(
-                            text = if (isMuted) "🔇" else "🔊",
-                            fontSize = 8.sp
-                        )
-                    }
-                }
-            }
 
             Spacer(modifier = Modifier.height(6.dp))
 
@@ -188,6 +271,7 @@ fun PlayerTopAppBar(
             }
         }
     }
+}
 }
 
 @Composable

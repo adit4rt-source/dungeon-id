@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -138,33 +140,44 @@ fun FarmingScreen(
             }
         }
 
-        // Info Banner
-        PixelFrame(
-            backgroundColor = Color(0xFF142419),
-            borderColor = Color(0xFF2E7D32),
-            contentPadding = 8.dp,
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .weight(1f),
+            contentAlignment = Alignment.TopCenter
         ) {
-            Text(
-                text = "TIPS TANAH: Siram air mempercepat panen 20%. Beri pupuk melipatgandakan panen 2x!",
-                fontFamily = Vt323FontFamily,
-                fontSize = 15.sp,
-                color = Color(0xFFC8E6C9)
-            )
-        }
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = 1000.dp)
+            ) {
+                // Info Banner
+                PixelFrame(
+                    backgroundColor = Color(0xFF142419),
+                    borderColor = Color(0xFF2E7D32),
+                    contentPadding = 8.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "TIPS TANAH: Siram air mempercepat panen 20%. Beri pupuk melipatgandakan panen 2x!",
+                        fontFamily = Vt323FontFamily,
+                        fontSize = 15.sp,
+                        color = Color(0xFFC8E6C9)
+                    )
+                }
 
-        // 8 Plots Grid
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 12.dp),
-            contentPadding = PaddingValues(bottom = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+                // 8 Plots Grid (Adaptive: 2 cols on phones, 3-4 cols on tablets/landscape)
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 145.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 12.dp),
+                    contentPadding = PaddingValues(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
             items(plots) { plot ->
                 PixelPlotCard(
                     plot = plot,
@@ -194,6 +207,7 @@ fun FarmingScreen(
             }
         }
     }
+}
 
     if (activePlotForPlanting != null) {
         val seedItems = inventory.filter { it.itemType == "SEED" }
@@ -215,6 +229,7 @@ fun FarmingScreen(
             }
         )
     }
+}
 }
 
 @Composable
@@ -367,7 +382,7 @@ fun PixelPlantSeedDialog(
         PixelFrame(
             backgroundColor = Color(0xFF141E17),
             borderColor = Color(0xFF4CAF50),
-            modifier = Modifier.fillMaxWidth().testTag("plant_seed_dialog")
+            modifier = Modifier.widthIn(max = 480.dp).fillMaxWidth().testTag("plant_seed_dialog")
         ) {
             Column {
                 Row(
@@ -392,7 +407,7 @@ fun PixelPlantSeedDialog(
                         }
                     }
                 } else {
-                    LazyColumn(modifier = Modifier.height(240.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    LazyColumn(modifier = Modifier.heightIn(max = 280.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         items(seedItems) { seedItem ->
                             val cropId = seedItem.id.removePrefix("crop_seed_")
                             val cropDef = GameDatabaseRegistry.CROPS.find { it.id == cropId || it.id == cropId.removePrefix("crop_") }

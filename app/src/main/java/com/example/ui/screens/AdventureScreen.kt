@@ -3,6 +3,7 @@ package com.example.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,7 +14,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -82,135 +88,145 @@ fun AdventureScreen(
         }
     }
 
-    Column(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFF0F0C1B))
-            .testTag("adventure_screen_root")
+            .testTag("adventure_screen_root"),
+        contentAlignment = Alignment.TopCenter
     ) {
-        // Pixel Header
-        Box(
+        val isWide = maxWidth >= 720.dp
+
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFF0D0B14))
-                .padding(bottom = 2.dp)
-                .background(Color(0xFF880E4F))
-                .padding(bottom = 2.dp)
-                .background(Color(0xFF24101A))
-                .padding(horizontal = 8.dp, vertical = 6.dp)
+                .widthIn(max = 1100.dp)
+                .fillMaxSize()
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            // Pixel Header
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF0D0B14))
+                    .padding(bottom = 2.dp)
+                    .background(Color(0xFF880E4F))
+                    .padding(bottom = 2.dp)
+                    .background(Color(0xFF24101A))
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
             ) {
-                IconButton(
-                    onClick = {
-                        if (combatState !is DungeonCombatState.HubSelection) {
-                            dungeonViewModel.exitDungeonToHub()
-                        }
-                        onNavigateBack()
-                    },
-                    modifier = Modifier.testTag("adventure_back_btn")
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali", tint = Color.White)
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "DUNGEON BERBURU [PIXEL]",
-                        fontFamily = PressStartFontFamily,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = RetroGold
-                    )
-                    Text(
-                        text = "Kalahkan monster pixel, boss & raih batu tempa",
-                        fontFamily = Vt323FontFamily,
-                        fontSize = 14.sp,
-                        color = Color(0xFFFF80AB)
-                    )
-                }
-
-                if (combatState !is DungeonCombatState.HubSelection &&
-                    combatState !is DungeonCombatState.DungeonVictory &&
-                    combatState !is DungeonCombatState.DungeonDefeat
-                ) {
-                    PixelButton(
-                        onClick = { dungeonViewModel.fleeDungeon() },
-                        backgroundColor = Color(0xFF4E342E),
-                        testTag = "flee_dungeon_btn"
+                    IconButton(
+                        onClick = {
+                            if (combatState !is DungeonCombatState.HubSelection) {
+                                dungeonViewModel.exitDungeonToHub()
+                            }
+                            onNavigateBack()
+                        },
+                        modifier = Modifier.testTag("adventure_back_btn")
                     ) {
-                        Text("LARI", fontFamily = PressStartFontFamily, fontSize = 7.sp, color = Color.White)
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali", tint = Color.White)
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "DUNGEON BERBURU [PIXEL]",
+                            fontFamily = PressStartFontFamily,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = RetroGold
+                        )
+                        Text(
+                            text = "Kalahkan monster pixel, boss & raih batu tempa",
+                            fontFamily = Vt323FontFamily,
+                            fontSize = 14.sp,
+                            color = Color(0xFFFF80AB)
+                        )
+                    }
+
+                    if (combatState !is DungeonCombatState.HubSelection &&
+                        combatState !is DungeonCombatState.DungeonVictory &&
+                        combatState !is DungeonCombatState.DungeonDefeat
+                    ) {
+                        PixelButton(
+                            onClick = { dungeonViewModel.fleeDungeon() },
+                            backgroundColor = Color(0xFF4E342E),
+                            testTag = "flee_dungeon_btn"
+                        ) {
+                            Text("LARI", fontFamily = PressStartFontFamily, fontSize = 7.sp, color = Color.White)
+                        }
                     }
                 }
             }
-        }
 
-        when (val state = combatState) {
-            is DungeonCombatState.HubSelection -> {
-                PixelDungeonHubSelectionView(
-                    dungeons = DungeonRegistry.ALL_DUNGEONS,
-                    playerLevel = player?.level ?: 1,
-                    selectedDifficulty = selectedDifficulty,
-                    onSelectDifficulty = { diff -> dungeonViewModel.setDifficulty(diff) },
-                    onEnterDungeon = { dng -> dungeonViewModel.enterDungeon(dng) }
-                )
-            }
+            when (val state = combatState) {
+                is DungeonCombatState.HubSelection -> {
+                    PixelDungeonHubSelectionView(
+                        dungeons = DungeonRegistry.ALL_DUNGEONS,
+                        playerLevel = player?.level ?: 1,
+                        selectedDifficulty = selectedDifficulty,
+                        onSelectDifficulty = { diff -> dungeonViewModel.setDifficulty(diff) },
+                        onEnterDungeon = { dng -> dungeonViewModel.enterDungeon(dng) }
+                    )
+                }
 
-            is DungeonCombatState.WaveEntrance -> {
-                PixelWaveEntranceView(wave = state.wave, difficulty = state.difficulty)
-            }
+                is DungeonCombatState.WaveEntrance -> {
+                    PixelWaveEntranceView(wave = state.wave, difficulty = state.difficulty)
+                }
 
-            is DungeonCombatState.PlayerTurn -> {
-                PixelCombatBattleArenaView(
-                    state = state,
-                    equippedPetName = equippedPet?.nickname ?: "Pet",
-                    onLightAttack = {
-                        soundManager.playCombatSlash()
-                        dungeonViewModel.onPlayerActionLightAttack()
-                    },
-                    onHeavySkill = {
-                        soundManager.playCombatSlash()
-                        dungeonViewModel.onPlayerActionHeavySkill()
-                    },
-                    onPetSynergy = {
-                        soundManager.playCombatSlash()
-                        dungeonViewModel.onPlayerActionPetSynergy()
-                    },
-                    onGuard = {
-                        soundManager.playMenuClick()
-                        dungeonViewModel.onPlayerActionGuard()
-                    },
-                    onUsePotion = {
-                        soundManager.playCoin()
-                        dungeonViewModel.onPlayerActionUsePotion()
-                    }
-                )
-            }
+                is DungeonCombatState.PlayerTurn -> {
+                    PixelCombatBattleArenaView(
+                        state = state,
+                        equippedPetName = equippedPet?.nickname ?: "Pet",
+                        onLightAttack = {
+                            soundManager.playCombatSlash()
+                            dungeonViewModel.onPlayerActionLightAttack()
+                        },
+                        onHeavySkill = {
+                            soundManager.playCombatSlash()
+                            dungeonViewModel.onPlayerActionHeavySkill()
+                        },
+                        onPetSynergy = {
+                            soundManager.playCombatSlash()
+                            dungeonViewModel.onPlayerActionPetSynergy()
+                        },
+                        onGuard = {
+                            soundManager.playMenuClick()
+                            dungeonViewModel.onPlayerActionGuard()
+                        },
+                        onUsePotion = {
+                            soundManager.playCoin()
+                            dungeonViewModel.onPlayerActionUsePotion()
+                        },
+                        isWide = isWide
+                    )
+                }
 
-            is DungeonCombatState.ResolvingAction -> {
-                PixelResolvingCombatActionView(state = state)
-            }
+                is DungeonCombatState.ResolvingAction -> {
+                    PixelResolvingCombatActionView(state = state)
+                }
 
-            is DungeonCombatState.WaveCompleted -> {
-                PixelWaveClearTransitionView(
-                    state = state,
-                    onProceedNext = { dungeonViewModel.proceedToNextWave() }
-                )
-            }
+                is DungeonCombatState.WaveCompleted -> {
+                    PixelWaveClearTransitionView(
+                        state = state,
+                        onProceedNext = { dungeonViewModel.proceedToNextWave() }
+                    )
+                }
 
-            is DungeonCombatState.DungeonVictory -> {
-                PixelDungeonVictoryChestView(
-                    state = state,
-                    onExit = { dungeonViewModel.exitDungeonToHub() }
-                )
-            }
+                is DungeonCombatState.DungeonVictory -> {
+                    PixelDungeonVictoryChestView(
+                        state = state,
+                        onExit = { dungeonViewModel.exitDungeonToHub() }
+                    )
+                }
 
-            is DungeonCombatState.DungeonDefeat -> {
-                PixelDungeonDefeatView(
-                    state = state,
-                    onExit = { dungeonViewModel.exitDungeonToHub() }
-                )
+                is DungeonCombatState.DungeonDefeat -> {
+                    PixelDungeonDefeatView(
+                        state = state,
+                        onExit = { dungeonViewModel.exitDungeonToHub() }
+                    )
+                }
             }
         }
     }
@@ -224,14 +240,16 @@ fun PixelDungeonHubSelectionView(
     onSelectDifficulty: (DungeonDifficulty) -> Unit,
     onEnterDungeon: (HuntingDungeon) -> Unit
 ) {
-    LazyColumn(
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 300.dp),
         modifier = Modifier
             .fillMaxSize()
             .padding(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Difficulty Level Selector
-        item {
+        item(span = { GridItemSpan(maxLineSpan) }) {
             PixelFrame(
                 backgroundColor = Color(0xFF1B172A),
                 borderColor = Color(0xFF4A3B69),
@@ -354,30 +372,39 @@ fun PixelWaveEntranceView(
             .padding(20.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            GlowingPulseBox {
-                PixelSprite(spriteKey = wave.enemy.id, size = 96.dp, animated = true)
+        PixelFrame(
+            backgroundColor = Color(0xFF1E1328),
+            borderColor = wave.enemy.rank.composeColor(),
+            modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                GlowingPulseBox {
+                    PixelSprite(spriteKey = wave.enemy.id, size = 96.dp, animated = true)
+                }
+                Spacer(modifier = Modifier.height(14.dp))
+                PixelBadge(
+                    text = "${wave.enemy.rank.label.uppercase()} [${difficulty.label.uppercase()}]",
+                    backgroundColor = wave.enemy.rank.composeColor()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = wave.waveName.uppercase(),
+                    fontFamily = PressStartFontFamily,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = RetroGold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = wave.enemy.name,
+                    fontFamily = Vt323FontFamily,
+                    fontSize = 18.sp,
+                    color = Color.White
+                )
             }
-            Spacer(modifier = Modifier.height(14.dp))
-            PixelBadge(
-                text = "${wave.enemy.rank.label.uppercase()} [${difficulty.label.uppercase()}]",
-                backgroundColor = wave.enemy.rank.composeColor()
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = wave.waveName.uppercase(),
-                fontFamily = PressStartFontFamily,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = RetroGold
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = wave.enemy.name,
-                fontFamily = Vt323FontFamily,
-                fontSize = 18.sp,
-                color = Color.White
-            )
         }
     }
 }
@@ -390,216 +417,441 @@ fun PixelCombatBattleArenaView(
     onHeavySkill: () -> Unit,
     onPetSynergy: () -> Unit,
     onGuard: () -> Unit,
-    onUsePotion: () -> Unit
+    onUsePotion: () -> Unit,
+    isWide: Boolean = false
 ) {
     val enemy = state.wave.enemy
     val enemyStatus = state.enemyStatus
     val playerStatus = state.playerStatus
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        // Floor & Wave Header
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+    if (isWide) {
+        // Wide screen side-by-side battle arena
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Left Column: Enemy Arena & Floor header
+            Column(
+                modifier = Modifier
+                    .weight(1.1f)
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                PixelBadge(
-                    text = "LANTAI ${state.wave.waveNumber}/${state.wave.totalWaves}",
-                    backgroundColor = Color(0xFF3949AB)
-                )
-                PixelBadge(
-                    text = "TURN ${state.turnCount}",
-                    backgroundColor = state.difficulty.composeColor()
-                )
-            }
-        }
-
-        // Enemy Pixel Arena Card
-        item {
-            PixelFrame(
-                backgroundColor = Color(0xFF28101C),
-                borderColor = enemy.rank.composeColor(),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        PixelBadge(text = enemy.rank.label.uppercase(), backgroundColor = enemy.rank.composeColor())
-                        Text(
-                            text = "ATK:${(enemy.attack * state.difficulty.statMultiplier).toInt()} DEF:${(enemy.defense * state.difficulty.statMultiplier).toInt()}",
-                            fontFamily = PressStartFontFamily,
-                            fontSize = 6.sp,
-                            color = Color(0xFFFFCDD2)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Animated Enemy Pixel Sprite!
-                    PixelSprite(
-                        spriteKey = enemy.id,
-                        size = 80.dp,
-                        animated = true
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text(
-                        text = enemy.name.uppercase(),
-                        fontFamily = PressStartFontFamily,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // Enemy Stepped HP Bar
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("HP MUSUH", fontFamily = PressStartFontFamily, fontSize = 6.sp, color = Color(0xFFFF8A80))
-                        Text("${enemyStatus.currentHp}/${enemyStatus.maxHp}", fontFamily = PressStartFontFamily, fontSize = 7.sp, color = Color.White)
-                    }
-                    Spacer(modifier = Modifier.height(2.dp))
-                    PixelStepProgressBar(
-                        current = enemyStatus.currentHp,
-                        max = enemyStatus.maxHp,
-                        barColor = Color(0xFFE53935),
-                        height = 10.dp,
-                        showLabel = false
-                    )
-                }
-            }
-        }
-
-        // Player Battle HUD
-        item {
-            PixelFrame(
-                backgroundColor = Color(0xFF1B172A),
-                borderColor = Color(0xFF4A3B69),
-                modifier = Modifier.fillMaxWidth()
-            ) {
+                // Floor & Wave Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("HP PEMAIN", fontFamily = PressStartFontFamily, fontSize = 7.sp, color = Color(0xFF81C784))
-                            if (playerStatus.shieldAmount > 0) {
-                                Spacer(modifier = Modifier.width(4.dp))
-                                PixelBadge(text = "+${playerStatus.shieldAmount} SHIELD", backgroundColor = Color(0xFF0288D1))
-                            }
+                    PixelBadge(
+                        text = "LANTAI ${state.wave.waveNumber}/${state.wave.totalWaves}",
+                        backgroundColor = Color(0xFF3949AB)
+                    )
+                    PixelBadge(
+                        text = "TURN ${state.turnCount}",
+                        backgroundColor = state.difficulty.composeColor()
+                    )
+                }
+
+                // Enemy Pixel Arena Card
+                PixelFrame(
+                    backgroundColor = Color(0xFF28101C),
+                    borderColor = enemy.rank.composeColor(),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            PixelBadge(text = enemy.rank.label.uppercase(), backgroundColor = enemy.rank.composeColor())
+                            Text(
+                                text = "ATK:${(enemy.attack * state.difficulty.statMultiplier).toInt()} DEF:${(enemy.defense * state.difficulty.statMultiplier).toInt()}",
+                                fontFamily = PressStartFontFamily,
+                                fontSize = 6.sp,
+                                color = Color(0xFFFFCDD2)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        PixelSprite(
+                            spriteKey = enemy.id,
+                            size = 100.dp,
+                            animated = true
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            text = enemy.name.uppercase(),
+                            fontFamily = PressStartFontFamily,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("HP MUSUH", fontFamily = PressStartFontFamily, fontSize = 6.sp, color = Color(0xFFFF8A80))
+                            Text("${enemyStatus.currentHp}/${enemyStatus.maxHp}", fontFamily = PressStartFontFamily, fontSize = 7.sp, color = Color.White)
                         }
                         Spacer(modifier = Modifier.height(2.dp))
                         PixelStepProgressBar(
-                            current = playerStatus.currentHp,
-                            max = playerStatus.maxHp,
-                            barColor = Color(0xFF43A047),
-                            height = 8.dp,
+                            current = enemyStatus.currentHp,
+                            max = enemyStatus.maxHp,
+                            barColor = Color(0xFFE53935),
+                            height = 10.dp,
                             showLabel = false
                         )
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "${playerStatus.currentHp}/${playerStatus.maxHp}",
-                        fontFamily = PressStartFontFamily,
-                        fontSize = 8.sp,
-                        color = Color.White
+                }
+            }
+
+            // Right Column: Player HUD + Commands + Battle Logs
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Player Battle HUD
+                item {
+                    PixelFrame(
+                        backgroundColor = Color(0xFF1B172A),
+                        borderColor = Color(0xFF4A3B69),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("HP PEMAIN", fontFamily = PressStartFontFamily, fontSize = 7.sp, color = Color(0xFF81C784))
+                                    if (playerStatus.shieldAmount > 0) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        PixelBadge(text = "+${playerStatus.shieldAmount} SHIELD", backgroundColor = Color(0xFF0288D1))
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                PixelStepProgressBar(
+                                    current = playerStatus.currentHp,
+                                    max = playerStatus.maxHp,
+                                    barColor = Color(0xFF43A047),
+                                    height = 8.dp,
+                                    showLabel = false
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "${playerStatus.currentHp}/${playerStatus.maxHp}",
+                                fontFamily = PressStartFontFamily,
+                                fontSize = 8.sp,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+
+                // Action Commands
+                item {
+                    Text("PERINTAH TEMPUR:", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = RetroGold)
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            PixelButton(
+                                onClick = onLightAttack,
+                                backgroundColor = Color(0xFFC62828),
+                                modifier = Modifier.weight(1f),
+                                testTag = "action_light_attack"
+                            ) {
+                                Text("🗡️ SERANG", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = Color.White)
+                            }
+
+                            PixelButton(
+                                onClick = onHeavySkill,
+                                backgroundColor = Color(0xFFAD1457),
+                                modifier = Modifier.weight(1f),
+                                testTag = "action_heavy_skill"
+                            ) {
+                                Text("⚡ BADAI (-2)", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = Color.White)
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            PixelButton(
+                                onClick = onPetSynergy,
+                                backgroundColor = Color(0xFF6A1B9A),
+                                modifier = Modifier.weight(1f),
+                                testTag = "action_pet_synergy"
+                            ) {
+                                Text("🐾 $equippedPetName (-3)", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = Color.White)
+                            }
+
+                            PixelButton(
+                                onClick = onGuard,
+                                backgroundColor = Color(0xFF00695C),
+                                modifier = Modifier.weight(1f),
+                                testTag = "action_guard"
+                            ) {
+                                Text("🛡️ BERTAHAN", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = Color.White)
+                            }
+                        }
+
+                        PixelButton(
+                            onClick = onUsePotion,
+                            backgroundColor = Color(0xFF0277BD),
+                            modifier = Modifier.fillMaxWidth(),
+                            testTag = "action_use_potion"
+                        ) {
+                            Text("🧪 RAMUAN HP (+40% DARAH)", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = Color.White)
+                        }
+                    }
+                }
+
+                // Battle Logs
+                item {
+                    PixelFrame(
+                        backgroundColor = Color(0xFF13101E),
+                        borderColor = Color(0xFF2C223E),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column {
+                            Text("LOG TEMPUR:", fontFamily = PressStartFontFamily, fontSize = 6.sp, color = Color.Gray)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            state.logs.takeLast(4).forEach { log ->
+                                Text(log, fontFamily = Vt323FontFamily, fontSize = 14.sp, color = Color(0xFFB0BEC5))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        // Standard phone single-column layout
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Floor & Wave Header
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    PixelBadge(
+                        text = "LANTAI ${state.wave.waveNumber}/${state.wave.totalWaves}",
+                        backgroundColor = Color(0xFF3949AB)
+                    )
+                    PixelBadge(
+                        text = "TURN ${state.turnCount}",
+                        backgroundColor = state.difficulty.composeColor()
                     )
                 }
             }
-        }
 
-        // Action Command Pixel Buttons
-        item {
-            Text("PERINTAH TEMPUR:", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = RetroGold)
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+            // Enemy Pixel Arena Card
+            item {
+                PixelFrame(
+                    backgroundColor = Color(0xFF28101C),
+                    borderColor = enemy.rank.composeColor(),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    PixelButton(
-                        onClick = onLightAttack,
-                        backgroundColor = Color(0xFFC62828),
-                        modifier = Modifier.weight(1f),
-                        testTag = "action_light_attack"
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("🗡️ SERANG", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = Color.White)
-                    }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            PixelBadge(text = enemy.rank.label.uppercase(), backgroundColor = enemy.rank.composeColor())
+                            Text(
+                                text = "ATK:${(enemy.attack * state.difficulty.statMultiplier).toInt()} DEF:${(enemy.defense * state.difficulty.statMultiplier).toInt()}",
+                                fontFamily = PressStartFontFamily,
+                                fontSize = 6.sp,
+                                color = Color(0xFFFFCDD2)
+                            )
+                        }
 
-                    PixelButton(
-                        onClick = onHeavySkill,
-                        backgroundColor = Color(0xFFAD1457),
-                        modifier = Modifier.weight(1f),
-                        testTag = "action_heavy_skill"
-                    ) {
-                        Text("⚡ BADAI (-2)", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = Color.White)
-                    }
-                }
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    PixelButton(
-                        onClick = onPetSynergy,
-                        backgroundColor = Color(0xFF6A1B9A),
-                        modifier = Modifier.weight(1f),
-                        testTag = "action_pet_synergy"
-                    ) {
-                        Text("🐾 $equippedPetName (-3)", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = Color.White)
-                    }
+                        // Animated Enemy Pixel Sprite!
+                        PixelSprite(
+                            spriteKey = enemy.id,
+                            size = 80.dp,
+                            animated = true
+                        )
 
-                    PixelButton(
-                        onClick = onGuard,
-                        backgroundColor = Color(0xFF00695C),
-                        modifier = Modifier.weight(1f),
-                        testTag = "action_guard"
-                    ) {
-                        Text("🛡️ BERTAHAN", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = Color.White)
-                    }
-                }
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                PixelButton(
-                    onClick = onUsePotion,
-                    backgroundColor = Color(0xFF0277BD),
-                    modifier = Modifier.fillMaxWidth(),
-                    testTag = "action_use_potion"
-                ) {
-                    Text("🧪 RAMUAN HP (+40% DARAH)", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = Color.White)
+                        Text(
+                            text = enemy.name.uppercase(),
+                            fontFamily = PressStartFontFamily,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        // Enemy Stepped HP Bar
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("HP MUSUH", fontFamily = PressStartFontFamily, fontSize = 6.sp, color = Color(0xFFFF8A80))
+                            Text("${enemyStatus.currentHp}/${enemyStatus.maxHp}", fontFamily = PressStartFontFamily, fontSize = 7.sp, color = Color.White)
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        PixelStepProgressBar(
+                            current = enemyStatus.currentHp,
+                            max = enemyStatus.maxHp,
+                            barColor = Color(0xFFE53935),
+                            height = 10.dp,
+                            showLabel = false
+                        )
+                    }
                 }
             }
-        }
 
-        // Battle Logs
-        item {
-            PixelFrame(
-                backgroundColor = Color(0xFF13101E),
-                borderColor = Color(0xFF2C223E),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column {
-                    Text("LOG TEMPUR:", fontFamily = PressStartFontFamily, fontSize = 6.sp, color = Color.Gray)
-                    Spacer(modifier = Modifier.height(2.dp))
-                    state.logs.takeLast(3).forEach { log ->
-                        Text(log, fontFamily = Vt323FontFamily, fontSize = 14.sp, color = Color(0xFFB0BEC5))
+            // Player Battle HUD
+            item {
+                PixelFrame(
+                    backgroundColor = Color(0xFF1B172A),
+                    borderColor = Color(0xFF4A3B69),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("HP PEMAIN", fontFamily = PressStartFontFamily, fontSize = 7.sp, color = Color(0xFF81C784))
+                                if (playerStatus.shieldAmount > 0) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    PixelBadge(text = "+${playerStatus.shieldAmount} SHIELD", backgroundColor = Color(0xFF0288D1))
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            PixelStepProgressBar(
+                                current = playerStatus.currentHp,
+                                max = playerStatus.maxHp,
+                                barColor = Color(0xFF43A047),
+                                height = 8.dp,
+                                showLabel = false
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "${playerStatus.currentHp}/${playerStatus.maxHp}",
+                            fontFamily = PressStartFontFamily,
+                            fontSize = 8.sp,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+
+            // Action Command Pixel Buttons
+            item {
+                Text("PERINTAH TEMPUR:", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = RetroGold)
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        PixelButton(
+                            onClick = onLightAttack,
+                            backgroundColor = Color(0xFFC62828),
+                            modifier = Modifier.weight(1f),
+                            testTag = "action_light_attack"
+                        ) {
+                            Text("🗡️ SERANG", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = Color.White)
+                        }
+
+                        PixelButton(
+                            onClick = onHeavySkill,
+                            backgroundColor = Color(0xFFAD1457),
+                            modifier = Modifier.weight(1f),
+                            testTag = "action_heavy_skill"
+                        ) {
+                            Text("⚡ BADAI (-2)", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = Color.White)
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        PixelButton(
+                            onClick = onPetSynergy,
+                            backgroundColor = Color(0xFF6A1B9A),
+                            modifier = Modifier.weight(1f),
+                            testTag = "action_pet_synergy"
+                        ) {
+                            Text("🐾 $equippedPetName (-3)", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = Color.White)
+                        }
+
+                        PixelButton(
+                            onClick = onGuard,
+                            backgroundColor = Color(0xFF00695C),
+                            modifier = Modifier.weight(1f),
+                            testTag = "action_guard"
+                        ) {
+                            Text("🛡️ BERTAHAN", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = Color.White)
+                        }
+                    }
+
+                    PixelButton(
+                        onClick = onUsePotion,
+                        backgroundColor = Color(0xFF0277BD),
+                        modifier = Modifier.fillMaxWidth(),
+                        testTag = "action_use_potion"
+                    ) {
+                        Text("🧪 RAMUAN HP (+40% DARAH)", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = Color.White)
+                    }
+                }
+            }
+
+            // Battle Logs
+            item {
+                PixelFrame(
+                    backgroundColor = Color(0xFF13101E),
+                    borderColor = Color(0xFF2C223E),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column {
+                        Text("LOG TEMPUR:", fontFamily = PressStartFontFamily, fontSize = 6.sp, color = Color.Gray)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        state.logs.takeLast(3).forEach { log ->
+                            Text(log, fontFamily = Vt323FontFamily, fontSize = 14.sp, color = Color(0xFFB0BEC5))
+                        }
                     }
                 }
             }
@@ -618,24 +870,33 @@ fun PixelResolvingCombatActionView(
             .padding(20.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            GlowingPulseBox {
-                Text(if (state.isTargetEnemy) "💥⚔️" else "🛡️✨", fontSize = 54.sp)
-            }
-            Spacer(modifier = Modifier.height(14.dp))
-            Text(
-                text = state.actionDescription,
-                fontFamily = Vt323FontFamily,
-                fontSize = 20.sp,
-                color = Color.White,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            if (state.damageValue > 0) {
-                PixelBadge(
-                    text = if (state.isTargetEnemy) "-${state.damageValue} DMG" else "+${state.damageValue} HP",
-                    backgroundColor = if (state.isCritical) Color(0xFFFF1744) else Color(0xFFFF8F00)
+        PixelFrame(
+            backgroundColor = Color(0xFF1C1428),
+            borderColor = if (state.isCritical) Color(0xFFFF1744) else RetroGold,
+            modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                GlowingPulseBox {
+                    Text(if (state.isTargetEnemy) "💥⚔️" else "🛡️✨", fontSize = 54.sp)
+                }
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                    text = state.actionDescription,
+                    fontFamily = Vt323FontFamily,
+                    fontSize = 20.sp,
+                    color = Color.White,
+                    textAlign = TextAlign.Center
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                if (state.damageValue > 0) {
+                    PixelBadge(
+                        text = if (state.isTargetEnemy) "-${state.damageValue} DMG" else "+${state.damageValue} HP",
+                        backgroundColor = if (state.isCritical) Color(0xFFFF1744) else Color(0xFFFF8F00)
+                    )
+                }
             }
         }
     }
@@ -656,7 +917,7 @@ fun PixelWaveClearTransitionView(
         PixelFrame(
             backgroundColor = Color(0xFF192A1D),
             borderColor = Color(0xFF4CAF50),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth()
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -694,7 +955,7 @@ fun PixelDungeonVictoryChestView(
         PixelFrame(
             backgroundColor = Color(0xFF1E1736),
             borderColor = RetroGold,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth()
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -781,7 +1042,7 @@ fun PixelDungeonDefeatView(
         PixelFrame(
             backgroundColor = Color(0xFF2D121B),
             borderColor = Color(0xFFB71C1C),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth()
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth(),

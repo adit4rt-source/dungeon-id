@@ -60,6 +60,11 @@ import com.example.ui.theme.PressStartFontFamily
 import com.example.ui.theme.Vt323FontFamily
 import com.example.ui.viewmodel.GameViewModel
 import com.example.util.LocalSoundManager
+import com.example.util.SoundManager
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @Composable
 fun HomeScreen(
@@ -80,287 +85,122 @@ fun HomeScreen(
 
     var showInventoryDialog by remember { mutableStateOf(false) }
 
-    LazyColumn(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFF0F0C1B))
             .testTag("home_screen_content"),
-        contentPadding = PaddingValues(14.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        contentAlignment = Alignment.TopCenter
     ) {
-        // Hero Pixel Frame
-        item {
-            PixelFrame(
-                backgroundColor = Color(0xFF1B162C),
-                borderColor = Color(0xFF4A3B69),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+        BoxWithConstraints(
+            modifier = Modifier
+                .widthIn(max = 1100.dp)
+                .fillMaxSize()
+        ) {
+            val isWide = maxWidth >= 720.dp
+
+            if (isWide) {
+                // Wide / Tablet / Landscape 2-Column Layout
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Left Column: Player Card & Companion
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Column {
-                            Text(
-                                text = "RPG REALM [INDIE]",
-                                fontFamily = PressStartFontFamily,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = RetroGold
-                            )
-                            Spacer(modifier = Modifier.height(3.dp))
-                            Text(
-                                text = "Dunia Petualangan Pixel Retro 16-Bit",
-                                fontFamily = Vt323FontFamily,
-                                fontSize = 15.sp,
-                                color = Color(0xFFB0BEC5)
-                            )
-                        }
+                        HeroPixelCard(
+                            player = player,
+                            equippedPet = equippedPet,
+                            onNavigateToInventory = onNavigateToInventory,
+                            onPlayMenuClick = { soundManager.playMenuClick() }
+                        )
 
-                        PixelButton(
-                            onClick = {
-                                soundManager.playMenuClick()
-                                onNavigateToInventory()
-                            },
-                            backgroundColor = Color(0xFF37474F),
-                            testTag = "open_inventory_button"
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Backpack, contentDescription = "Tas", tint = Color.White, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("TAS", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = Color.White)
-                            }
-                        }
+                        ActivePetCompanionCard(
+                            equippedPet = equippedPet,
+                            onNavigateToPets = onNavigateToPets
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    // Right Column: Navigation Adventure Menu & Quests
+                    Column(
+                        modifier = Modifier
+                            .weight(1.2f)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        PixelStatBox(title = "PANCING", value = "Tier ${player?.fishingRodLevel ?: 1}", icon = "🎣", modifier = Modifier.weight(1f))
-                        PixelStatBox(title = "PET", value = if (equippedPet != null) "Stage ${equippedPet?.evolutionStage}" else "None", icon = "🐾", modifier = Modifier.weight(1f))
-                        PixelStatBox(title = "LEVEL", value = "Lv.${player?.level ?: 1}", icon = "⚡", modifier = Modifier.weight(1f))
-                    }
-                }
-            }
-        }
+                        AdventureMenuSection(
+                            soundManager = soundManager,
+                            onNavigateToFishing = onNavigateToFishing,
+                            onNavigateToFarming = onNavigateToFarming,
+                            onNavigateToPets = onNavigateToPets,
+                            onNavigateToAdventure = onNavigateToAdventure,
+                            onNavigateToMarket = onNavigateToMarket,
+                            onNavigateToInventory = onNavigateToInventory
+                        )
 
-        // Active Pet Companion Pixel Showcase
-        item {
-            val pet = equippedPet
-            val species = pet?.let { p -> GameDatabaseRegistry.PET_SPECIES.find { it.id == p.speciesId } }
+                        DailyQuestsHeader(quests = quests)
 
-            PixelFrame(
-                backgroundColor = Color(0xFF221738),
-                borderColor = Color(0xFF7B1FA2),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToPets() }
-                    .testTag("active_pet_banner_card")
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    PixelSprite(
-                        spriteKey = pet?.speciesId ?: "pet_wolf",
-                        size = 56.dp,
-                        animated = true
-                    )
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = pet?.nickname ?: "Belum Memasang Pet",
-                                fontFamily = PressStartFontFamily,
-                                fontSize = 10.sp,
-                                color = Color.White
-                            )
-                            if (pet != null) {
-                                Spacer(modifier = Modifier.width(6.dp))
-                                PixelBadge(
-                                    text = "S${pet.evolutionStage} Lv.${pet.level}",
-                                    backgroundColor = Color(0xFF6A1B9A)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        if (pet != null) {
-                            Text(
-                                text = species?.specialty ?: "Sahabat Tempur",
-                                fontFamily = Vt323FontFamily,
-                                fontSize = 14.sp,
-                                color = Color(0xFFCE93D8)
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("KENYANG: ${pet.hunger}%", fontFamily = PressStartFontFamily, fontSize = 6.sp, color = Color(0xFFFFB74D))
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    PixelStepProgressBar(current = pet.hunger, max = 100, barColor = Color(0xFFFF9800), height = 6.dp, showLabel = false)
-                                }
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("MOOD: ${pet.happiness}%", fontFamily = PressStartFontFamily, fontSize = 6.sp, color = Color(0xFFF48FB1))
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    PixelStepProgressBar(current = pet.happiness, max = 100, barColor = Color(0xFFE91E63), height = 6.dp, showLabel = false)
-                                }
-                            }
-                        } else {
-                            Text(
-                                text = "Buka menu Pet untuk mengadopsi sahabat!",
-                                fontFamily = Vt323FontFamily,
-                                fontSize = 14.sp,
-                                color = Color(0xFFB0BEC5)
+                        quests.forEach { quest ->
+                            PixelQuestCard(
+                                quest = quest,
+                                onClaim = { viewModel.claimQuest(quest.id) }
                             )
                         }
                     }
+                }
+            } else {
+                // Mobile Portrait Single Column
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    item {
+                        HeroPixelCard(
+                            player = player,
+                            equippedPet = equippedPet,
+                            onNavigateToInventory = onNavigateToInventory,
+                            onPlayMenuClick = { soundManager.playMenuClick() }
+                        )
+                    }
 
-                    Icon(Icons.Default.ChevronRight, contentDescription = "Detail", tint = Color.Gray)
+                    item {
+                        ActivePetCompanionCard(
+                            equippedPet = equippedPet,
+                            onNavigateToPets = onNavigateToPets
+                        )
+                    }
+
+                    item {
+                        AdventureMenuSection(
+                            soundManager = soundManager,
+                            onNavigateToFishing = onNavigateToFishing,
+                            onNavigateToFarming = onNavigateToFarming,
+                            onNavigateToPets = onNavigateToPets,
+                            onNavigateToAdventure = onNavigateToAdventure,
+                            onNavigateToMarket = onNavigateToMarket,
+                            onNavigateToInventory = onNavigateToInventory
+                        )
+                    }
+
+                    item {
+                        DailyQuestsHeader(quests = quests)
+                    }
+
+                    items(quests) { quest ->
+                        PixelQuestCard(
+                            quest = quest,
+                            onClaim = { viewModel.claimQuest(quest.id) }
+                        )
+                    }
                 }
             }
-        }
-
-        // Navigation Menu
-        item {
-            Text(
-                text = "MENU PETUALANGAN:",
-                fontFamily = PressStartFontFamily,
-                fontSize = 10.sp,
-                color = RetroGold
-            )
-        }
-
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    PixelMenuTile(
-                        title = "MANCING",
-                        subtitle = "Tangkap Ikan & Upgrade",
-                        icon = "🎣",
-                        bgColor = Color(0xFF006064),
-                        testTag = "nav_btn_fishing",
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            soundManager.playMenuClick()
-                            onNavigateToFishing()
-                        }
-                    )
-                    PixelMenuTile(
-                        title = "KEBUN TANI",
-                        subtitle = "Tanam Benih & Siram",
-                        icon = "🌾",
-                        bgColor = Color(0xFF1B5E20),
-                        testTag = "nav_btn_farming",
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            soundManager.playMenuClick()
-                            onNavigateToFarming()
-                        }
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    PixelMenuTile(
-                        title = "PET ANIMAL",
-                        subtitle = "Latih & Evolusi 3-Tier",
-                        icon = "🐾",
-                        bgColor = Color(0xFF4A148C),
-                        testTag = "nav_btn_pets",
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            soundManager.playMenuClick()
-                            onNavigateToPets()
-                        }
-                    )
-                    PixelMenuTile(
-                        title = "DUNGEON",
-                        subtitle = "Berburu Monster & Boss",
-                        icon = "⚔️",
-                        bgColor = Color(0xFF880E4F),
-                        testTag = "nav_btn_adventure",
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            soundManager.playMenuClick()
-                            onNavigateToAdventure()
-                        }
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    PixelMenuTile(
-                        title = "PASAR & TEMPA",
-                        subtitle = "Toko, Jual & Dapur",
-                        icon = "🏪",
-                        bgColor = Color(0xFFE65100),
-                        testTag = "nav_btn_market",
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            soundManager.playMenuClick()
-                            onNavigateToMarket()
-                        }
-                    )
-                    PixelMenuTile(
-                        title = "TAS [PIXEL]",
-                        subtitle = "Kelola Item & Drop",
-                        icon = "🎒",
-                        bgColor = Color(0xFF311B92),
-                        testTag = "nav_btn_inventory",
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            soundManager.playMenuClick()
-                            onNavigateToInventory()
-                        }
-                    )
-                }
-            }
-        }
-
-        // Daily Quests
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "MISI HARIAN:",
-                    fontFamily = PressStartFontFamily,
-                    fontSize = 10.sp,
-                    color = RetroGold
-                )
-                Text(
-                    text = "${quests.count { it.isCompleted && !it.isClaimed }} Siap",
-                    fontFamily = PressStartFontFamily,
-                    fontSize = 8.sp,
-                    color = Color(0xFF81C784)
-                )
-            }
-        }
-
-        items(quests) { quest ->
-            PixelQuestCard(
-                quest = quest,
-                onClaim = { viewModel.claimQuest(quest.id) }
-            )
         }
     }
 
@@ -369,6 +209,288 @@ fun HomeScreen(
             items = inventory,
             onDismiss = { showInventoryDialog = false },
             onUseItem = { item -> viewModel.useItem(item) }
+        )
+    }
+}
+
+@Composable
+fun HeroPixelCard(
+    player: PlayerProfileEntity?,
+    equippedPet: PetEntity?,
+    onNavigateToInventory: () -> Unit,
+    onPlayMenuClick: () -> Unit
+) {
+    PixelFrame(
+        backgroundColor = Color(0xFF1B162C),
+        borderColor = Color(0xFF4A3B69),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "RPG REALM [INDIE]",
+                        fontFamily = PressStartFontFamily,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = RetroGold
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "Dunia Petualangan Pixel Retro 16-Bit",
+                        fontFamily = Vt323FontFamily,
+                        fontSize = 15.sp,
+                        color = Color(0xFFB0BEC5)
+                    )
+                }
+
+                PixelButton(
+                    onClick = {
+                        onPlayMenuClick()
+                        onNavigateToInventory()
+                    },
+                    backgroundColor = Color(0xFF37474F),
+                    testTag = "open_inventory_button"
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Backpack, contentDescription = "Tas", tint = Color.White, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("TAS", fontFamily = PressStartFontFamily, fontSize = 8.sp, color = Color.White)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                PixelStatBox(title = "PANCING", value = "Tier ${player?.fishingRodLevel ?: 1}", icon = "🎣", modifier = Modifier.weight(1f))
+                PixelStatBox(title = "PET", value = if (equippedPet != null) "Stage ${equippedPet.evolutionStage}" else "None", icon = "🐾", modifier = Modifier.weight(1f))
+                PixelStatBox(title = "LEVEL", value = "Lv.${player?.level ?: 1}", icon = "⚡", modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+fun ActivePetCompanionCard(
+    equippedPet: PetEntity?,
+    onNavigateToPets: () -> Unit
+) {
+    val pet = equippedPet
+    val species = pet?.let { p -> GameDatabaseRegistry.PET_SPECIES.find { it.id == p.speciesId } }
+
+    PixelFrame(
+        backgroundColor = Color(0xFF221738),
+        borderColor = Color(0xFF7B1FA2),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onNavigateToPets() }
+            .testTag("active_pet_banner_card")
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            PixelSprite(
+                spriteKey = pet?.speciesId ?: "pet_wolf",
+                size = 56.dp,
+                animated = true
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = pet?.nickname ?: "Belum Memasang Pet",
+                        fontFamily = PressStartFontFamily,
+                        fontSize = 10.sp,
+                        color = Color.White
+                    )
+                    if (pet != null) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        PixelBadge(
+                            text = "S${pet.evolutionStage} Lv.${pet.level}",
+                            backgroundColor = Color(0xFF6A1B9A)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                if (pet != null) {
+                    Text(
+                        text = species?.specialty ?: "Sahabat Tempur",
+                        fontFamily = Vt323FontFamily,
+                        fontSize = 14.sp,
+                        color = Color(0xFFCE93D8)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("KENYANG: ${pet.hunger}%", fontFamily = PressStartFontFamily, fontSize = 6.sp, color = Color(0xFFFFB74D))
+                            Spacer(modifier = Modifier.height(2.dp))
+                            PixelStepProgressBar(current = pet.hunger, max = 100, barColor = Color(0xFFFF9800), height = 6.dp, showLabel = false)
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("MOOD: ${pet.happiness}%", fontFamily = PressStartFontFamily, fontSize = 6.sp, color = Color(0xFFF48FB1))
+                            Spacer(modifier = Modifier.height(2.dp))
+                            PixelStepProgressBar(current = pet.happiness, max = 100, barColor = Color(0xFFE91E63), height = 6.dp, showLabel = false)
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "Buka menu Pet untuk mengadopsi sahabat!",
+                        fontFamily = Vt323FontFamily,
+                        fontSize = 14.sp,
+                        color = Color(0xFFB0BEC5)
+                    )
+                }
+            }
+
+            Icon(Icons.Default.ChevronRight, contentDescription = "Detail", tint = Color.Gray)
+        }
+    }
+}
+
+@Composable
+fun AdventureMenuSection(
+    soundManager: SoundManager,
+    onNavigateToFishing: () -> Unit,
+    onNavigateToFarming: () -> Unit,
+    onNavigateToPets: () -> Unit,
+    onNavigateToAdventure: () -> Unit,
+    onNavigateToMarket: () -> Unit,
+    onNavigateToInventory: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            text = "MENU PETUALANGAN:",
+            fontFamily = PressStartFontFamily,
+            fontSize = 10.sp,
+            color = RetroGold
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            PixelMenuTile(
+                title = "MANCING",
+                subtitle = "Tangkap Ikan & Upgrade",
+                icon = "🎣",
+                bgColor = Color(0xFF006064),
+                testTag = "nav_btn_fishing",
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    soundManager.playMenuClick()
+                    onNavigateToFishing()
+                }
+            )
+            PixelMenuTile(
+                title = "KEBUN TANI",
+                subtitle = "Tanam Benih & Siram",
+                icon = "🌾",
+                bgColor = Color(0xFF1B5E20),
+                testTag = "nav_btn_farming",
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    soundManager.playMenuClick()
+                    onNavigateToFarming()
+                }
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            PixelMenuTile(
+                title = "PET ANIMAL",
+                subtitle = "Latih & Evolusi 3-Tier",
+                icon = "🐾",
+                bgColor = Color(0xFF4A148C),
+                testTag = "nav_btn_pets",
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    soundManager.playMenuClick()
+                    onNavigateToPets()
+                }
+            )
+            PixelMenuTile(
+                title = "DUNGEON",
+                subtitle = "Berburu Monster & Boss",
+                icon = "⚔️",
+                bgColor = Color(0xFF880E4F),
+                testTag = "nav_btn_adventure",
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    soundManager.playMenuClick()
+                    onNavigateToAdventure()
+                }
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            PixelMenuTile(
+                title = "PASAR & TEMPA",
+                subtitle = "Toko, Jual & Dapur",
+                icon = "🏪",
+                bgColor = Color(0xFFE65100),
+                testTag = "nav_btn_market",
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    soundManager.playMenuClick()
+                    onNavigateToMarket()
+                }
+            )
+            PixelMenuTile(
+                title = "TAS [PIXEL]",
+                subtitle = "Kelola Item & Drop",
+                icon = "🎒",
+                bgColor = Color(0xFF311B92),
+                testTag = "nav_btn_inventory",
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    soundManager.playMenuClick()
+                    onNavigateToInventory()
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun DailyQuestsHeader(quests: List<QuestEntity>) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "MISI HARIAN:",
+            fontFamily = PressStartFontFamily,
+            fontSize = 10.sp,
+            color = RetroGold
+        )
+        Text(
+            text = "${quests.count { it.isCompleted && !it.isClaimed }} Siap",
+            fontFamily = PressStartFontFamily,
+            fontSize = 8.sp,
+            color = Color(0xFF81C784)
         )
     }
 }

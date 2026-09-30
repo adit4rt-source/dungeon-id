@@ -202,16 +202,35 @@ fun MainGameApp(
                     currentAccount = userAccount,
                     allAccounts = allAccounts,
                     onDismiss = { showAccountDialog = false },
+                    onLoginCredentials = { identifier, password, callback ->
+                        viewModel.loginWithCredentials(identifier, password) { success, msg ->
+                            callback(success, msg)
+                            if (success) showAccountDialog = false
+                        }
+                    },
+                    onRegister = { username, email, password, discordTag, callback ->
+                        viewModel.register(username, email, password, discordTag) { success, msg ->
+                            callback(success, msg)
+                            if (success) showAccountDialog = false
+                        }
+                    },
+                    onLoginDiscord = { discordTag, email, callback ->
+                        viewModel.loginWithDiscord(discordTag, email) { success, msg ->
+                            callback(success, msg)
+                            if (success) showAccountDialog = false
+                        }
+                    },
+                    onLinkDiscord = { discordTag, callback ->
+                        viewModel.linkDiscord(discordTag) { success, msg ->
+                            callback(success, msg)
+                        }
+                    },
                     onLoginGoogle = { username, email ->
                         viewModel.loginWithGoogle(username, email)
                         showAccountDialog = false
                     },
                     onLoginFacebook = { username, email ->
                         viewModel.loginWithFacebook(username, email)
-                        showAccountDialog = false
-                    },
-                    onLoginDiscord = { username, email ->
-                        viewModel.loginWithDiscord(username, email)
                         showAccountDialog = false
                     },
                     onLoginGuest = {

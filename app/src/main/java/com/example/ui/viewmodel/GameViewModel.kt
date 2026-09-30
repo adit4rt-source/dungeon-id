@@ -132,6 +132,44 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // --- USER ACCOUNT ACTIONS ---
+    fun register(
+        username: String,
+        email: String,
+        password: String,
+        discordTag: String? = null,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            val res = repository.registerAccount(username, email, password, discordTag)
+            res.onSuccess { account ->
+                showToast("✨ Berhasil mendaftar akun ${account.username}!")
+                onResult(true, "Registrasi berhasil! Selamat datang, ${account.username}.")
+            }.onFailure { err ->
+                val msg = err.message ?: "Gagal mendaftar akun."
+                showToast(msg)
+                onResult(false, msg)
+            }
+        }
+    }
+
+    fun loginWithCredentials(
+        identifier: String,
+        password: String,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            val res = repository.loginWithUsernameOrEmail(identifier, password)
+            res.onSuccess { account ->
+                showToast("🔑 Berhasil masuk sebagai ${account.username}!")
+                onResult(true, "Login berhasil!")
+            }.onFailure { err ->
+                val msg = err.message ?: "Gagal masuk."
+                showToast(msg)
+                onResult(false, msg)
+            }
+        }
+    }
+
     fun loginWithGoogle(customUsername: String? = null, customEmail: String? = null) {
         viewModelScope.launch {
             val username = customUsername ?: "Gamer Google"
@@ -150,12 +188,36 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun loginWithDiscord(customUsername: String? = null, customEmail: String? = null) {
+    fun loginWithDiscord(
+        customUsername: String? = null,
+        customEmail: String? = null,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
         viewModelScope.launch {
-            val username = customUsername ?: "Gamer Discord#1337"
-            val email = customEmail ?: "player.discord@discord.com"
-            val account = repository.loginWithProvider("DISCORD", username, email)
-            showToast("🟣 Berhasil login dengan Discord sebagai ${account.username}!")
+            val tag = customUsername?.ifBlank { "DiscordPetualang#1337" } ?: "DiscordPetualang#1337"
+            val res = repository.loginWithDiscordAccount(tag, customEmail)
+            res.onSuccess { account ->
+                showToast("🟣 Berhasil masuk dengan Discord sebagai ${account.username}!")
+                onResult(true, "Login Discord berhasil!")
+            }.onFailure { err ->
+                val msg = err.message ?: "Gagal login Discord."
+                showToast(msg)
+                onResult(false, msg)
+            }
+        }
+    }
+
+    fun linkDiscord(discordTag: String, onResult: (Boolean, String) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val res = repository.linkDiscordToCurrentAccount(discordTag)
+            res.onSuccess { msg ->
+                showToast(msg)
+                onResult(true, msg)
+            }.onFailure { err ->
+                val msg = err.message ?: "Gagal menautkan Discord."
+                showToast(msg)
+                onResult(false, msg)
+            }
         }
     }
 
